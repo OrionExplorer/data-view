@@ -1,0 +1,71 @@
+version: '3.7'
+
+services:
+  core:
+    container_name: core
+    build:
+      context: ./
+      dockerfile: data-view.dockerfile
+    command: gunicorn --worker-tmp-dir /dev/shm --workers 2 data-view.wsgi:application --bind 0.0.0.0:8888 --reload --timeout 600
+    volumes:
+      - ".:/code"
+      - "./data-view/static:/code/data-view/static"
+      - "./data-view/API/migrations:/code/data-view/API/migrations"
+      - "/var/log/data-view:/var/log/data-view"
+      - "shared_files:/shared"
+    expose:
+      - "8888"
+    env_file:
+      - ./.env.data-view.prod
+    environment:
+      - TZ=Europe/Warsaw
+    depends_on:
+      - db
+      - libreoffice
+    restart: always
+    networks:
+      - app-network
+  libreoffice:
+    build:
+      context: ./libreoffice
+    container_name: libreoffice
+    expose:
+      - "5000"
+    restart: always
+    networks:
+      - app-network
+    volumes:
+      - "shared_files:/shared"
+  db:
+    container_name: db
+    volumes:
+      - "postgres_data:/var/lib/postgresql/data/"
+    image: postgres:17.2-bookworm
+    ports:
+      - "5455:5455"
+    env_file:
+      - ./.env.data-view-db.prod
+    restart: always
+    networks:
+      - app-network
+  nginx:
+    container_name: nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    volumes:
+      - ./data-view/static:/code/static/
+    ports:
+      - "9393:9393"
+    depends_on:
+      - core
+    restart: always
+    networks:
+      - app-network
+volumes:
+  postgres_data:
+  shared_files:
+
+networks:
+  app-network:
+    driver: bridge

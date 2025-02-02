@@ -1,0 +1,9 @@
+psycopg2-binary
+django==5.1.5
+gunicorn
+unoconv
+regex
+pandas>=2.2.3
+beautifulsoup4>=4.12.3
+weasyprint==64.0
+requests
