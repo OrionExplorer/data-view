@@ -17,9 +17,14 @@ from API.views import LOG_data
 from API.views import _AddApiKeyCreditHistory
 from API.models import ApiKey
 from decimal import Decimal
+from django.shortcuts import render
 
 
 logger = logging.getLogger("django")
+
+
+def landing_page(request):
+    return render(request, 'dataview_landing_page.html')
 
 
 @csrf_exempt

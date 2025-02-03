@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataView</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #e0e0e0;
+            text-align: center;
+        }
+
+        header {
+            background-color: #1f1f1f;
+            color: #ffffff;
+            padding: 20px 0;
+        }
+
+        section {
+            padding: 40px 20px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: #BB86FC;
+            color: #121212;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .cta-button:hover {
+            background-color: #9a67ea;
+        }
+
+        footer {
+            background-color: #1f1f1f;
+            color: #e0e0e0;
+            padding: 10px 0;
+            position: fixed;
+            width: 100%;
+            bottom: 0;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li::before {
+            content: "\2022";
+            color: #BB86FC;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Welcome to DataView</h1>
+    </header>
+
+    <section>
+        <h2>About DataView</h2>
+        <p>DataView is an API-based platform designed for secure and efficient conversion of emails and attachments to PDF files. It focuses on data security, seamless integration, and a flexible credit-based billing system tailored to each user.</p>
+        <p>The system provides endpoints for:</p>
+        <ul style="text-align: left; display: inline-block;">
+            <li>Converting raw email content to PDF with embedded security features</li>
+            <li>Converting various document attachments to PDF for secure viewing</li>
+            <li>Managing API usage through a credit-based billing model</li>
+        </ul>
+        <br><br>
+        <a href="https://github.com/OrionExplorer/data-view" class="cta-button" target="_blank">View Project on GitHub</a>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 Marcin Kelar. All rights reserved.</p>
+    </footer>
+</body>
+</html>
