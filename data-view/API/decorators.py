@@ -42,7 +42,7 @@ def valid_api_key(func):
                     )
             else:
                 return JsonResponse(
-                    {"message": "Provided API key is invalid."},
+                    {"message": "Invalid API key."},
                     status=401,
                 )
         return JsonResponse(

@@ -242,7 +242,7 @@ def DownloadPDFView(request, download_token):
     try:
         converted_email = ConvertedEmail.objects.get(download_token=download_token, user=user)
     except ConvertedEmail.DoesNotExist:
-        return JsonResponse({"error": "Requested file does not exist or you do not have access to it."}, status=404)
+        return JsonResponse({"error": "File does not exist or you do not have access."}, status=404)
 
     UserApiKeyItem = None
     if 'x-api-id' in request.META:

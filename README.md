@@ -10,6 +10,213 @@ The system provides endpoints for:
 
 ---
 
+# 📊 Use Cases for DataView API
+
+This section describes common use cases for interacting with the DataView API, focusing on the following endpoints:  
+- **`/api/email-to-pdf/`** – Convert emails to PDF  
+- **`/api/attachment-to-pdf/`** – Convert attachments to PDF  
+- **`/api/download/`** – Download converted PDF files  
+
+These endpoints support both simple and advanced workflows, making DataView flexible for different business scenarios.
+
+---
+
+## 📧 `/api/email-to-pdf/` – Email to PDF Conversion
+
+This endpoint converts an entire email into a PDF file, preserving key metadata (subject, sender, recipient, date) and the body content.
+
+### ✅ **1. Use Case: Converting EML Files to PDF**
+
+- **Scenario:** A user has received an email in `.eml` format and wants to archive it as a PDF for legal compliance.  
+- **Request Format:** `multipart/form-data`
+
+#### **Example Request:**
+
+```bash
+curl -X POST "http://data-view.local/api/email-to-pdf/" \
+     -H "x-api-key: YOUR_API_KEY" \
+     -F "file=@/path/to/email.eml"
+```
+
+#### **Response:**
+
+```json
+{
+  "status": "success",
+  "file_id": "abc123xyz",
+  "file_size": 204800
+}
+```
+
+---
+
+### ✅ **2. Use Case: Sending Email Data as JSON**
+
+- **Scenario:** An external system automatically forwards emails as JSON (without `.eml` files) to convert them into PDFs for quick previews.  
+- **Request Format:** `application/json`
+
+#### **Example Request:**
+
+```bash
+curl -X POST "http://data-view.local/api/email-to-pdf/" \
+     -H "x-api-key: YOUR_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "subject": "Project Update",
+           "sender": "alice@example.com",
+           "recipient": "bob@example.com",
+           "body": "Hello Bob, here is the project update.",
+           "attachments": [
+               {
+                   "filename": "report.docx",
+                   "content": "BASE64_ENCODED_CONTENT"
+               }
+           ]
+         }'
+```
+
+---
+
+## 📎 `/api/attachment-to-pdf/` – Attachment to PDF Conversion
+
+This endpoint is designed to convert document attachments (e.g., DOCX, XLSX, CSV) into PDF files for secure viewing.
+
+### ✅ **1. Use Case: Converting Uploaded Files**
+
+- **Scenario:** A user uploads a Microsoft Word document to convert it into a PDF for secure sharing.  
+- **Request Format:** `multipart/form-data`
+
+#### **Example Request:**
+
+```bash
+curl -X POST "http://data-view.local/api/attachment-to-pdf/" \
+     -H "x-api-key: YOUR_API_KEY" \
+     -F "file=@/path/to/document.docx"
+```
+
+#### **Response:**
+
+```json
+{
+  "status": "success",
+  "file_id": "def456uvw",
+  "file_size": 102400
+}
+```
+
+---
+
+### ✅ **2. Use Case: Sending Attachment as Base64**
+
+- **Scenario:** An automated system sends a document (encoded in Base64) directly to the API for conversion without storing it locally.  
+- **Request Format:** `application/json`
+
+#### **Example Request:**
+
+```bash
+curl -X POST "http://data-view.local/api/attachment-to-pdf/" \
+     -H "x-api-key: YOUR_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "filename": "invoice.xlsx",
+           "content": "BASE64_ENCODED_CONTENT"
+         }'
+```
+
+---
+
+## 📥 `/api/download/` – Download Converted PDFs
+
+This endpoint allows users to download previously converted PDF files using the unique `file_id` received after conversion.
+
+### ✅ **1. Use Case: Downloading a Converted Email PDF**
+
+- **Scenario:** A user wants to download the PDF generated from an email conversion.
+
+#### **Example Request:**
+
+```bash
+curl -X GET "http://data-view.local/api/download/abc123xyz/" \
+     -H "x-api-key: YOUR_API_KEY" \
+     -o "email_converted.pdf"
+```
+
+---
+
+### ✅ **2. Use Case: Downloading a Converted Attachment PDF**
+
+- **Scenario:** A PDF generated from an attachment conversion needs to be retrieved for record-keeping.
+
+#### **Example Request:**
+
+```bash
+curl -X GET "http://data-view.local/api/download/def456uvw/" \
+     -H "x-api-key: YOUR_API_KEY" \
+     -o "attachment_converted.pdf"
+```
+
+---
+
+## 🚨 Error Handling
+
+### ❌ **1. Insufficient Credits**
+
+If the user's account does not have enough credits to process the request:
+
+```json
+{
+  "error": "Insufficient credits. Please top up your account.",
+  "required_credits": 10,
+  "available_credits": 5
+}
+```
+
+---
+
+### ❌ **2. Invalid API Key**
+
+When an incorrect or missing API key is provided:
+
+```json
+{
+  "error": "Invalid API key."
+}
+```
+
+---
+
+### ❌ **3. File Not Found (Download Endpoint)**
+
+If the provided `file_id` does not exist or the user lacks permission:
+
+```json
+{
+  "error": "File does not exist or you do not have access."
+}
+```
+
+---
+
+## 🔑 **Authentication**
+
+All API requests require an `x-api-key` header for authentication.
+
+```bash
+-H "x-api-key: YOUR_API_KEY"
+```
+
+Ensure that the API key has sufficient credits for both uploads and downloads, as DataView uses a **credit-based billing system**.
+
+---
+
+## 💡 Final Notes
+
+- **Efficient Data Flow:** DataView supports both direct file uploads and JSON-based automation for seamless integrations.  
+- **Flexible Formats:** Compatible with common file types, ensuring smooth document conversions.  
+- **Secure Access:** API key authentication and credit-based billing for controlled usage.
+
+---
+
 ## 📊 Usage
 
 ### 🔑 API Key Management
