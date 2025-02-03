@@ -1,4 +1,4 @@
-# 📄 DataView API
+# 📄 DataView API [![data-view](https://github.com/OrionExplorer/data-view/actions/workflows/data-view-django.yml/badge.svg)](https://github.com/OrionExplorer/data-view/actions/workflows/data-view-django.yml)
 
 **DataView** is an API-based platform designed for secure and efficient conversion of emails and attachments to PDF files.  
 It focuses on **data security**, **seamless integration**, and a flexible **credit-based billing system** tailored to each user.
@@ -224,9 +224,3 @@ http://data-view.local:9393/
 ```bash
 docker-compose ps
 ```
-
----
-
-## 📄 License
-
-MIT License – See [LICENSE](LICENSE) for details.
