@@ -8,10 +8,12 @@ The system provides endpoints for:
 - Converting various document attachments to PDF for secure viewing  
 - Managing API usage through a credit-based billing model  
 
+---
+
 ## 📚 Table of Contents
 
 1. [📊 Use Cases for DataView API](#-use-cases-for-dataview-api)
-   - [📧 `/api/email-to-pdf/` – Email to PDF Conversion](#-apiewmail-to-pdf--email-to-pdf-conversion)
+   - [📧 `/api/email-to-pdf/` – Email to PDF Conversion](#-apiemail-to-pdf--email-to-pdf-conversion)
      - [✅ 1. Use Case: Converting EML Files to PDF](#-1-use-case-converting-eml-files-to-pdf)
      - [✅ 2. Use Case: Sending Email Data as JSON](#-2-use-case-sending-email-data-as-json)
    - [📎 `/api/attachment-to-pdf/` – Attachment to PDF Conversion](#-apiattachment-to-pdf--attachment-to-pdf-conversion)
@@ -28,6 +30,7 @@ The system provides endpoints for:
 4. [💡 Final Notes](#-final-notes)
 5. [📊 Usage](#-usage)
    - [🔑 API Key Management](#-api-key-management)
+6. [💳 Billing System](#-billing-system)
    - [💡 Billing Example](#-billing-example)
      - [📤 Upload Calculation (5 MB file)](#-upload-calculation-5-mb-file)
      - [📥 Download Calculation (12-mb-file)](#-download-calculation-12-mb-file)
@@ -36,7 +39,6 @@ The system provides endpoints for:
      - [🚨 Example Error (Insufficient Credits)](#-example-error-insufficient-credits)
    - [📈 API Request Billing History](#-api-request-billing-history)
    - [💳 Top-up Credits](#-top-up-credits)
-6. [💳 Billing System](#-billing-system)
 7. [🚀 Technologies Used](#-technologies-used)
    - [Core Technologies](#core-technologies)
    - [Document Conversion & Processing](#document-conversion--processing)
@@ -267,6 +269,17 @@ Each `ApiKey` includes the following properties:
 
 ---
 
+## 💳 Billing System
+
+DataView uses a **credit-based billing system** to track API usage:  
+- **Credits** are consumed for both **uploading data** (e.g., emails, attachments) and **downloading converted PDFs**.  
+- **Billing is user-specific**, based on the API key associated with each account.  
+- Credit consumption is proportional to data size and processing demands.  
+
+If there are insufficient credits, API requests will return an error with status code **402 (Payment Required)**.
+
+---
+
 ### 💡 **Billing Example**
 
 Consider the following scenario where a user uploads a document and later downloads the converted PDF file.
@@ -369,17 +382,6 @@ To add credits to an API key, the system uses the **`ApiKeyCreditTopUp`** model.
 - **Date and Time** of the top-up transaction  
 
 Credits are immediately available after a successful top-up, allowing uninterrupted API usage.
-
----
-
-## 💳 Billing System
-
-DataView uses a **credit-based billing system** to track API usage:  
-- **Credits** are consumed for both **uploading data** (e.g., emails, attachments) and **downloading converted PDFs**.  
-- **Billing is user-specific**, based on the API key associated with each account.  
-- Credit consumption is proportional to data size and processing demands.  
-
-If there are insufficient credits, API requests will return an error with status code **402 (Payment Required)**.
 
 ---
 
