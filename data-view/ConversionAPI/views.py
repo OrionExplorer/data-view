@@ -18,6 +18,10 @@ from API.views import _AddApiKeyCreditHistory
 from API.models import ApiKey
 from decimal import Decimal
 from django.shortcuts import render
+from email import message_from_binary_file
+from email.message import EmailMessage
+from io import BytesIO
+import base64
 
 
 logger = logging.getLogger("django")
@@ -41,9 +45,39 @@ def EmailToPDFView(request):
 
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 
-    if request.method == 'POST' and request.FILES.get('file'):
-        file = request.FILES['file']
-        PDFPath, FileSize = ConvertEmailToPDF(file)
+    if request.method == 'POST':
+        if request.content_type.startswith('multipart/form-data'):
+            file = request.FILES['file']
+            PDFPath, FileSize = ConvertEmailToPDF(file)
+        elif request.content_type == 'application/json':
+            data = json.loads(request.body)
+            sender = data.get('sender')
+            recipient = data.get('recipient')
+            subject = data.get('subject', 'No Subject')
+            body = data.get('body')
+            attachments = data.get('attachments', [])
+
+            if not sender or not recipient or not body:
+                return JsonResponse({'error': 'Missing required fields.'}, status=400)
+
+            # Tworzenie wiadomości e-mail w formacie EML (tymczasowy plik)
+            msg = EmailMessage()
+            msg['From'] = sender
+            msg['To'] = recipient
+            msg['Subject'] = subject
+            msg.set_content(body)
+
+            # Przetwarzanie załączników
+            for attachment in attachments:
+                filename = attachment.get('filename')
+                content = attachment.get('content')
+                if filename and content:
+                    file_data = base64.b64decode(content)
+                    msg.add_attachment(file_data, maintype='application', subtype='octet-stream', filename=filename)
+
+            # Konwersja do PDF
+            eml_file = BytesIO(msg.as_bytes())
+            PDFPath, FileSize = ConvertEmailToPDF(eml_file)
 
         CreditsLeft = UserApiKeyItem.credits
         BillingInfo = ConvertedEmail.get_billing()
