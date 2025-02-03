@@ -1,4 +1,4 @@
-# 📄 DataView API [![data-view](https://github.com/OrionExplorer/data-view/actions/workflows/data-view-django.yml/badge.svg)](https://github.com/OrionExplorer/data-view/actions/workflows/data-view-django.yml)
+# 📄 DataView API [![data-view](https://github.com/OrionExplorer/data-view/actions/workflows/data-view-django.yml/badge.svg)](https://github.com/OrionExplorer/data-view/actions/workflows/data-view-django.yml) [![CodeQL Advanced](https://github.com/OrionExplorer/data-view/actions/workflows/codeql.yml/badge.svg)](https://github.com/OrionExplorer/data-view/actions/workflows/codeql.yml)
 
 **DataView** is an API-based platform designed for secure and efficient conversion of emails and attachments to PDF files.  
 It focuses on **data security**, **seamless integration**, and a flexible **credit-based billing system** tailored to each user.
