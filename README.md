@@ -204,3 +204,12 @@ http://data-view.local:9393/
 ```bash
 docker-compose ps
 ```
+
+## 📜 License
+
+This project is licensed under the **Elastic License 2.0 (ELv2)**.  
+- **Usage:** Free for personal, internal, and non-commercial use.  
+- **Commercial SaaS Use:** Requires a separate commercial license.  
+- **Restrictions:** You may not offer the DataView project as a SaaS or hosted service without explicit permission.  
+
+See [LICENSE](LICENSE.md) for full details.
