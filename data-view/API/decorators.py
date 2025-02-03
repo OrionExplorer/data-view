@@ -38,7 +38,7 @@ def valid_api_key(func):
                 else:
                     return JsonResponse(
                         {"message": "API key is valid, but out of credits."},
-                        status=400,
+                        status=402,
                     )
             else:
                 return JsonResponse(

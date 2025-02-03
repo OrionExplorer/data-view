@@ -1,40 +1,32 @@
-# DataView [![data-view](https://github.com/OrionExplorer/data-view/actions/workflows/data-view-django.yml/badge.svg)](https://github.com/OrionExplorer/data-view/actions/workflows/data-view-django.yml)
-DataView - API for all the data you need.
+# 📄 DataView API
 
-## Stack
-### Django 5.1.5
-[Custom docker image](https://github.com/OrionExplorer/data-view/blob/main/data-view.dockerfile) named `core` is based on Debian 12 "bookworm". Runs on Gunicorn on port `8888` by default.
+**DataView** is an API-based platform designed for secure and efficient conversion of emails and attachments to PDF files.  
+It focuses on **data security**, **seamless integration**, and a flexible **credit-based billing system** tailored to each user.
 
-### PostgreSQL 17.2
-Named `db`. Runs on port `5455` by default.
+The system provides endpoints for:  
+- Converting raw email content to PDF with embedded security features  
+- Converting various document attachments to PDF for secure viewing  
+- Managing API usage through a credit-based billing model  
 
-### Nginx
-Named `nginx`. Runs as reverse proxy for Django (upstream port `8888`) and listens on port `9393` by default.
+---
 
-### Docker & docker compose
-For faster and safer deployments.
+## 📊 Usage
 
-## Requests
-### /items/
-`https://data-view.local:9393/items/`
+### 🔑 API Key Management
 
-To gather information on available models and their configuration.
+The core model for authentication and billing is the **`ApiKey`** model, which is linked to a specific **`User`**.  
+Each `ApiKey` includes the following properties:
+- **`api_key`** – Auto-generated key used for authenticating API requests via the custom header `x-api-key`.  
+- **`credits`** – A virtual currency used to track API usage. Credits are consumed based on data transfers during both uploads and downloads.
 
-### /items/\<str:model\>/
-`https://data-view.local:9393/items/shop/?start=0&limit=25`
+---
 
-To get data from specific model.
-##### Parameters
-* start (if not provided, parameter is set to 0)
-* limit (if not provided, parameter is set to 25)
-* every field from model as filter (combination of multiple fields is possible)
+### ⚡ Billing Model
 
-Each request details are saved in `/var/log/data-view/api.log`. If `/var/log/` is unaccesible, `log` folder is created in app main path as a fallback.
+Every model that can be queried via the API must define a **`billing`** property. This determines how many credits are deducted for data processing.
 
-## Usage
-### API key
-Main model is `ApiKey` linked with `User`. It has auto-generated `api_key` to use with every request in custom `x-api-key` header.
-It also contains `credits` - a currency to spend on data transfers. Each queryable model has to have a `billing` property, for example:
+#### **Example of a Billing Property Declaration:**
+
 ```python
 billing = {
     'chunk_KB': 10,
@@ -42,74 +34,199 @@ billing = {
     'min_chunk_KB': 10
 }
 ```
-* `chunk_KB` - for how much KB of transferred data we charge `credits`
-* `credits` - how much credits we charge for `chunk_KB` of transferred data
-* `min_chunk_KB` - minimum chunk size we charge `credits` for
 
-#### Example
-Let's say the request we performed generated 651 records in response, and it's size is 248.3 KB.
-We charge 0.1 credit per 10 KB of data.
-Our request generated 25 chunks (248.3 KB / 10 KB).
-Credits charged for our request: 2.5 (25 of 10 KB chunks x 0.1 credit).
+- **`chunk_KB`** – The size of each data chunk (in KB) for which credits will be charged.  
+- **`credits`** – The number of credits charged per data chunk of `chunk_KB` size.  
+- **`min_chunk_KB`** – The minimum data chunk size (in KB) that will trigger a credit deduction.
 
-Credits to charge are calculated prior to sending the response. If the request exceeds available credits, error is returned.
+---
 
-### Billing
-Each request is saved with `ApiKeyCreditHistory` model. It contains following details:
-* API key used for the request
-* Date and time of the request
-* Requested endpoint with query parameters
-* Response size (in KB)
-* Request chunk size (in KB) from model's `billing` property at the time of action
-* Number of generated chunks of data
-* Credit cost per chunk from model's `billing` property at the time of action
-* Total credit cost of the request
-* Credit balance before charge
-* IP address
-* Unique request identificator as stored in log the file
+### 💡 **Billing Example**
 
-### Top-up
-To top-up `credits` in `ApiKey`, an `ApiKeyCreditTopUp` model is used. It contains following information:
-* API key
-* Number of credits to add to `ApiKey`'s `credits` value
-* Date and time
+Consider the following scenario where a user uploads a document and later downloads the converted PDF file.
 
-## Feeding data
-Each dataset is spearate Django Application:
-```bash
-root@localhost:~/data-view# python manage.py startapp ShopsAPI
+#### **Scenario:**
+- **Upload:** A document with a size of **5 MB (5120 KB)** is uploaded for conversion.  
+- **Download:** The converted PDF file has a size of **1.2 MB (1229 KB)** and is downloaded.
+
+#### **Billing Configuration:**
+
+```python
+billing = {
+    'chunk_KB': 10,
+    'credits': 0.1,
+    'min_chunk_KB': 10
+}
 ```
-You only have to create your models (with the definition of billing). And, of course, feed them with data. The rest - that is, making them available through the API - is handled by the system. [See the example here](https://github.com/OrionExplorer/data-view/blob/main/data-view/ShopsAPI/models.py).
 
-## TODO
-* [x] New model `ApiKey`:
-  * [x] api_key (`CharField`)
-  * [x] credits (~~`BigAutoField`~~ `DecimalField`)
-  * [x] user (foreign key to `User` model)
-  * [x] created (`DateTimeField`)
-* [x] Views decorators:
-  * [x] `@valid_api_key` checking for `X-API-KEY` in request header
-* [x] New model `ApiKeyCreditHistory`
-  * [x] api_key (`ForeignKey`)
-  * [x] data_request_uri (`CharField`)
-  * [x] response_size (`IntegerField`)
-  * [x] request_chunk_size (`IntegeField`)
-  * [x] chunk_count (`IntegerField`)
-  * [x] credit_per_chunk (`DecimalField`)
-  * [x] total_credit_cost (`DecimalFied`)
-  * [x] credit_balance (`DecimalFild`)
-  * [x] timestamp (`DateTimeField`)
-  * [x] ip (`GenericIPAddressField`)
-* [x] `BillingMixin` to define billing information for each set of data (model):
-  * [x] `chunk_KB`
-  * [x] `credits`
-  * [x] `min_chunk_KB`
-* [x] New model `ApiKeyCreditTopUp`:
-  * [x] api_key (`ForeignKey`)
-  * [x] credit_top_up (`DecimalField`)
-  * [x] timestamp (`DateTimeField`)
-* [x] Universal field filtering capability for any model
-* [x] New endpoint `/items/` to list every model with details on available fields
-  * [x] Return fields configuration (name, type, size)
-  * [x] Billing information
-* [x] Queryable models as separate Django applications
+- **`chunk_KB = 10`** – Credits are charged for every 10 KB of data transferred.  
+- **`credits = 0.1`** – Each 10 KB chunk costs **0.1 credit**.  
+- **`min_chunk_KB = 10`** – The minimum data size charged is 10 KB, even for smaller files.
+
+---
+
+#### **📤 Upload Calculation (5 MB file):**
+
+1. **File Size:** 5120 KB  
+2. **Chunks:** 5120 KB ÷ 10 KB = **512 chunks**  
+3. **Credits Charged:** 512 × 0.1 = **51.2 credits**
+
+---
+
+#### **📥 Download Calculation (1.2 MB file):**
+
+1. **File Size:** 1229 KB  
+2. **Chunks:** 1229 KB ÷ 10 KB = **123 chunks** (rounded up)  
+3. **Credits Charged:** 123 × 0.1 = **12.3 credits**
+
+---
+
+### ✅ **Total Credits Charged**
+
+- **Upload:** 51.2 credits  
+- **Download:** 12.3 credits  
+
+**Total Credits Used:** **63.5 credits**
+
+---
+
+### ⚠️ **Important Notes:**
+- **Credits are calculated before processing the request.**  
+- If the user does not have enough credits, the API will return an error **before** uploading or downloading starts.  
+- **Minimum chunk size applies:** Even files smaller than 10 KB will be charged as 1 full chunk (0.1 credit).  
+
+---
+
+### 🚨 **Example Error (Insufficient Credits):**
+
+```json
+{
+  "error": "Insufficient credits. Please top up your account.",
+  "required_credits": 63.5,
+  "available_credits": 40.0
+}
+```
+- **`required_credits`** – Number of credits needed to process the request.  
+- **`available_credits`** – Current credit balance of the API key.
+
+In this case, the user had **40 credits**, which is insufficient for the total cost of **63.5 credits**.  
+The request will be rejected until the user tops up their credits.
+
+---
+
+### 📈 API Request Billing History
+
+Every API request is logged using the **`ApiKeyCreditHistory`** model. This provides detailed tracking of API usage for billing purposes.
+
+#### **Tracked Information:**
+- **API Key** used for the request  
+- **Date and Time** of the request  
+- **Requested Endpoint** with query parameters  
+- **Response Size** (in KB)  
+- **Chunk Size** (from the model’s `billing` property at the time of the request)  
+- **Number of Chunks** generated  
+- **Credit Cost per Chunk** (from the model’s `billing` property)  
+- **Total Credits Charged** for the request  
+- **Credit Balance Before Charge**  
+- **IP Address** of the requester  
+- **Unique Request Identifier** (as stored in system logs)  
+
+---
+
+### 💳 Top-up Credits
+
+To add credits to an API key, the system uses the **`ApiKeyCreditTopUp`** model.
+
+#### **Top-up Details Tracked:**
+- **API Key** to which the credits are applied  
+- **Credits Added** to the API key’s current balance  
+- **Date and Time** of the top-up transaction  
+
+Credits are immediately available after a successful top-up, allowing uninterrupted API usage.
+
+---
+
+## 💳 Billing System
+
+DataView uses a **credit-based billing system** to track API usage:  
+- **Credits** are consumed for both **uploading data** (e.g., emails, attachments) and **downloading converted PDFs**.  
+- **Billing is user-specific**, based on the API key associated with each account.  
+- Credit consumption is proportional to data size and processing demands.  
+
+If there are insufficient credits, API requests will return an error with status code **402 (Payment Required)**.
+
+---
+
+## 🚀 Technologies Used
+
+### **Core Technologies**
+- **Django 5.1.5** – Backend framework for API management
+- **Gunicorn** – WSGI HTTP server for running the Django application
+- **Nginx** – Reverse proxy for handling incoming HTTP(S) requests
+
+### **Document Conversion & Processing**
+- **LibreOffice (headless mode)** – For converting document formats to PDF
+- **soffice** – Command-line interface for LibreOffice
+- **WeasyPrint 64.0** – HTML/CSS to PDF converter for rendering email content
+- **BeautifulSoup4 4.12.3** – HTML parsing and data extraction from email content
+
+### **Database & Storage**
+- **PostgreSQL 17.2** – Relational database for managing user data and billing
+- **Volumes:**  
+  - `postgres_data` – Persistent data storage for PostgreSQL  
+  - `shared_files` – Shared volume between containers for file management
+
+### **Containerization & Orchestration**
+- **Docker** – For containerizing and orchestrating services
+- **Bridge Network** – Custom Docker network `app-network` to facilitate inter-container communication
+
+### **Security & API Management**
+- **API Key Authentication** – Secure access to API endpoints
+- **.env Files** – Environment variable management for secure configuration (`.env.data-view.prod`, `.env.data-view-db.prod`)
+- **HTTPS** (via Nginx reverse proxy) – Secure data transmission (configurable)
+
+---
+
+## 📦 Deployment Architecture
+
+The system is composed of multiple Docker containers:
+
+- **`core`** – Runs the Django application using Gunicorn  
+  - Exposes port `8888` internally  
+  - Depends on **PostgreSQL** and **LibreOffice** services  
+- **`libreoffice`** – Headless LibreOffice for document conversion  
+  - Exposes port `5000` for internal communication  
+- **`db`** – PostgreSQL 17.2 database for data storage  
+  - Mapped to port `5455` for database management  
+- **`nginx`** – Reverse proxy for handling incoming HTTP(S) requests  
+  - Exposes external port `9393` for public API access  
+
+The containers communicate via the **`app-network`** (bridge network).
+
+---
+
+## ⚙️ Deployment Instructions
+
+1. **Build and run the containers:**
+
+```bash
+docker-compose up --build -d
+```
+
+2. **Access the API via Nginx:**
+
+```bash
+http://data-view.local:9393/
+```
+
+3. **Check running containers:**
+
+```bash
+docker-compose ps
+```
+
+---
+
+## 📄 License
+
+MIT License – See [LICENSE](LICENSE) for details.

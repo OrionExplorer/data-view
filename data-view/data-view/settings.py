@@ -35,9 +35,9 @@ CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")
 
 INSTALLED_APPS = [
     'API.apps.ApiConfig',
-    'TechniciansAPI.apps.TechniciansapiConfig',
-    'ShopsAPI.apps.ShopsapiConfig',
-    'PolandGeoAPI.apps.PolandgeoapiConfig',
+    # 'TechniciansAPI.apps.TechniciansapiConfig',
+    # 'ShopsAPI.apps.ShopsapiConfig',
+    # 'PolandGeoAPI.apps.PolandgeoapiConfig',
     'ConversionAPI.apps.ConversionapiConfig',
     'django.contrib.admin',
     'django.contrib.auth',

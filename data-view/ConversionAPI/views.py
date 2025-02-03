@@ -28,7 +28,7 @@ def EmailToPDFView(request):
     try:
         UserItem = GetUserFromApiKey(request)
     except PermissionDenied as e:
-        return JsonResponse({"message": str(e)}, status=403)
+        return JsonResponse({"error": str(e)}, status=403)
 
     UserApiKeyItem = None
     if 'x-api-id' in request.META:
@@ -52,9 +52,13 @@ def EmailToPDFView(request):
         if PredictedBallance < 0.0:
             LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
             return JsonResponse(
-                {"message": "Your request exceeds available credits."},
+                {
+                    "error": "Insufficient credits. Please top up your account.",
+                    "available_credits": float(CreditsLeft),
+                    "required_credits": float(CreditTransferCost)
+                },
                 json_dumps_params={'indent': 2},
-                status=400,
+                status=402,
             )
         UserApiKeyItem.credits = max(0, PredictedBallance)
         UserApiKeyItem.save()
@@ -95,7 +99,7 @@ def EmailToPDFView(request):
             "file_size": converted_email.file_size
         })
 
-    return JsonResponse({"message": "No email received."}, status=400)
+    return JsonResponse({"error": "No email received."}, status=400)
 
 
 @csrf_exempt
@@ -104,7 +108,7 @@ def AttachmentToPDFView(request):
     try:
         UserItem = GetUserFromApiKey(request)
     except PermissionDenied as e:
-        return JsonResponse({"message": str(e)}, status=403)
+        return JsonResponse({"error": str(e)}, status=403)
 
     UserApiKeyItem = None
     if 'x-api-id' in request.META:
@@ -123,7 +127,7 @@ def AttachmentToPDFView(request):
             PDFPath, FileSize = convert_attachment_to_pdf(file=file, api_key=UserApiKeyItem.api_key)
 
         if PDFPath is None or FileSize is None:
-            return JsonResponse({"message": "Conversion failed."}, status=400)
+            return JsonResponse({"error": "Conversion failed."}, status=400)
 
         CreditsLeft = UserApiKeyItem.credits
         BillingInfo = ConvertedEmail.get_billing()
@@ -137,9 +141,13 @@ def AttachmentToPDFView(request):
         if PredictedBallance < 0.0:
             LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
             return JsonResponse(
-                {"message": "Your request exceeds available credits."},
+                {
+                    "error": "Insufficient credits. Please top up your account.",
+                    "available_credits": float(CreditsLeft),
+                    "required_credits": float(CreditTransferCost)
+                },
                 json_dumps_params={'indent': 2},
-                status=400,
+                status=402,
             )
         UserApiKeyItem.credits = max(0, PredictedBallance)
         UserApiKeyItem.save()
@@ -181,7 +189,7 @@ def AttachmentToPDFView(request):
         })
         return JsonResponse({'pdf_url': f'{PDFPath}'})
 
-    return JsonResponse({"message": "No attachment files received."}, status=400)
+    return JsonResponse({"error": "No attachment files received."}, status=400)
 
 
 @csrf_exempt
@@ -190,12 +198,12 @@ def DownloadPDFView(request, download_token):
     try:
         user = GetUserFromApiKey(request)
     except PermissionDenied as e:
-        return JsonResponse({"message": str(e)}, status=403)
+        return JsonResponse({"error": str(e)}, status=403)
 
     try:
         converted_email = ConvertedEmail.objects.get(download_token=download_token, user=user)
     except ConvertedEmail.DoesNotExist:
-        return JsonResponse({"message": "Requested file does not exist or you do not have access to it."}, status=404)
+        return JsonResponse({"error": "Requested file does not exist or you do not have access to it."}, status=404)
 
     UserApiKeyItem = None
     if 'x-api-id' in request.META:
@@ -216,7 +224,11 @@ def DownloadPDFView(request, download_token):
     if PredictedBallance < 0.0:
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
         return JsonResponse(
-            {"message": "Your request exceeds available credits."},
+            {
+                "error": "Insufficient credits. Please top up your account.",
+                "available_credits": float(CreditsLeft),
+                "required_credits": float(CreditTransferCost)
+            },
             json_dumps_params={'indent': 2},
             status=400,
         )

@@ -29,6 +29,9 @@ python3 manage.py migrate API
 echo "Create default admin account..."
 python3 manage.py initadmin
 
+echo "Create default system settings..."
+python3 manage.py initconfig
+
 # echo "Run data-view services..."
 # service cron start
 
