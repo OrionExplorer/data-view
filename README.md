@@ -8,6 +8,45 @@ The system provides endpoints for:
 - Converting various document attachments to PDF for secure viewing  
 - Managing API usage through a credit-based billing model  
 
+## 📚 Table of Contents
+
+1. [📊 Use Cases for DataView API](#-use-cases-for-dataview-api)
+   - [📧 `/api/email-to-pdf/` – Email to PDF Conversion](#-apiewmail-to-pdf--email-to-pdf-conversion)
+     - [✅ 1. Use Case: Converting EML Files to PDF](#-1-use-case-converting-eml-files-to-pdf)
+     - [✅ 2. Use Case: Sending Email Data as JSON](#-2-use-case-sending-email-data-as-json)
+   - [📎 `/api/attachment-to-pdf/` – Attachment to PDF Conversion](#-apiattachment-to-pdf--attachment-to-pdf-conversion)
+     - [✅ 1. Use Case: Converting Uploaded Files](#-1-use-case-converting-uploaded-files)
+     - [✅ 2. Use Case: Sending Attachment as Base64](#-2-use-case-sending-attachment-as-base64)
+   - [📥 `/api/download/` – Download Converted PDFs](#-apidownload--download-converted-pdfs)
+     - [✅ 1. Use Case: Downloading a Converted Email PDF](#-1-use-case-downloading-a-converted-email-pdf)
+     - [✅ 2. Use Case: Downloading a Converted Attachment PDF](#-2-use-case-downloading-a-converted-attachment-pdf)
+2. [🚨 Error Handling](#-error-handling)
+   - [❌ 1. Insufficient Credits](#-1-insufficient-credits)
+   - [❌ 2. Invalid API Key](#-2-invalid-api-key)
+   - [❌ 3. File Not Found (Download Endpoint)](#-3-file-not-found-download-endpoint)
+3. [🔑 Authentication](#-authentication)
+4. [💡 Final Notes](#-final-notes)
+5. [📊 Usage](#-usage)
+   - [🔑 API Key Management](#-api-key-management)
+   - [💡 Billing Example](#-billing-example)
+     - [📤 Upload Calculation (5 MB file)](#-upload-calculation-5-mb-file)
+     - [📥 Download Calculation (12-mb-file)](#-download-calculation-12-mb-file)
+     - [✅ Total Credits Charged](#-total-credits-charged)
+     - [⚠️ Important Notes](#-important-notes)
+     - [🚨 Example Error (Insufficient Credits)](#-example-error-insufficient-credits)
+   - [📈 API Request Billing History](#-api-request-billing-history)
+   - [💳 Top-up Credits](#-top-up-credits)
+6. [💳 Billing System](#-billing-system)
+7. [🚀 Technologies Used](#-technologies-used)
+   - [Core Technologies](#core-technologies)
+   - [Document Conversion & Processing](#document-conversion--processing)
+   - [Database & Storage](#database--storage)
+   - [Containerization & Orchestration](#containerization--orchestration)
+   - [Security & API Management](#security--api-management)
+8. [📦 Deployment Architecture](#-deployment-architecture)
+9. [⚙️ Deployment Instructions](#-deployment-instructions)
+10. [📜 License](#-license)
+
 ---
 
 # 📊 Use Cases for DataView API
