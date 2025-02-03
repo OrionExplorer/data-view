@@ -21,12 +21,6 @@ Each `ApiKey` includes the following properties:
 
 ---
 
-### ⚡ Billing Model
-
-Every model that can be queried via the API must define a **`billing`** property. This determines how many credits are deducted for data processing.
-
----
-
 ### 💡 **Billing Example**
 
 Consider the following scenario where a user uploads a document and later downloads the converted PDF file.
