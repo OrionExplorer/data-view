@@ -25,20 +25,6 @@ Each `ApiKey` includes the following properties:
 
 Every model that can be queried via the API must define a **`billing`** property. This determines how many credits are deducted for data processing.
 
-#### **Example of a Billing Property Declaration:**
-
-```python
-billing = {
-    'chunk_KB': 10,
-    'credits': 0.1,
-    'min_chunk_KB': 10
-}
-```
-
-- **`chunk_KB`** – The size of each data chunk (in KB) for which credits will be charged.  
-- **`credits`** – The number of credits charged per data chunk of `chunk_KB` size.  
-- **`min_chunk_KB`** – The minimum data chunk size (in KB) that will trigger a credit deduction.
-
 ---
 
 ### 💡 **Billing Example**
