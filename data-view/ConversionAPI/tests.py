@@ -38,3 +38,84 @@ Invoke-WebRequest -Uri "https://data-view.eu/api/download/$response.download_lin
 """
 flake8 --ignore=E501,F401,E402,E902 .
 """
+
+
+from django.test import TestCase, Client
+from django.urls import reverse
+from django.test.utils import setup_test_environment
+import base64
+
+class DataViewAPITest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.api_key = "7tumuz-t3xlhg-mjonnx-crubl1"
+        self.headers = {"x-api-key": self.api_key}
+
+        self.email_data = {
+            "subject": "Test Email",
+            "sender": "test@example.com",
+            "recipient": "recipient@example.com",
+            "body": "This is a test email."
+        }
+
+        self.attachment_data = {
+            "filename": "test.txt",
+            "content": base64.b64encode(b"This is a test attachment.").decode('utf-8')
+        }
+
+    def test_email_to_pdf(self):
+        modes = ["file_id", "inline_pdf", "base64_pdf"]
+        for mode in modes:
+            response = self.client.post(f"/api/email-to-pdf/?mode={mode}", 
+                                        data=self.email_data, 
+                                        content_type="application/json", 
+                                        headers=self.headers)
+            self.assertEqual(response.status_code, 200, f"Failed for mode={mode}")
+
+    def test_attachment_to_pdf(self):
+        modes = ["file_id", "inline_pdf", "base64_pdf"]
+        for mode in modes:
+            response = self.client.post(f"/api/attachment-to-pdf/?mode={mode}", 
+                                        data=self.attachment_data, 
+                                        content_type="application/json", 
+                                        headers=self.headers)
+            self.assertEqual(response.status_code, 200, f"Failed for mode={mode}")
+
+    def test_download_converted_file(self):
+        # First, create a file to download
+        response = self.client.post("/api/email-to-pdf/?mode=file_id", 
+                                    data=self.email_data, 
+                                    content_type="application/json", 
+                                    headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        file_id = response.json().get("file_id")
+
+        # Now test downloading the file
+        download_response = self.client.get(f"/api/download/{file_id}/", headers=self.headers)
+        self.assertEqual(download_response.status_code, 200)
+
+    def test_invalid_api_key(self):
+        invalid_headers = {"HTTP_X_API_KEY": "invalid_api_key"}
+        response = self.client.post("/api/email-to-pdf/", 
+                                    data=self.email_data, 
+                                    content_type="application/json", 
+                                    **invalid_headers)
+        self.assertEqual(response.status_code, 403)
+
+    def test_missing_api_key(self):
+        response = self.client.post("/api/email-to-pdf/", 
+                                    data=self.email_data, 
+                                    content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    def test_insufficient_credits(self):
+        # Simulate insufficient credits scenario
+        # This would require modifying the API key credits in the test DB setup
+        self.api_key = "h0aohk-r8olaa-daxlrz-evhblf"
+        low_credit_headers = {"HTTP_X_API_KEY": self.api_key}
+
+        response = self.client.post("/api/email-to-pdf/", 
+                                    data=self.email_data, 
+                                    content_type="application/json", 
+                                    **low_credit_headers)
+        self.assertEqual(response.status_code, 402)

@@ -42,8 +42,10 @@ def HandleHTTPResponse(Mode, PDFPath, DownloadToken=None):
         return JsonResponse({"file_id": DownloadToken})
 
 
-def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, OutputFileSize):
+def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, OutputFileSize, ViewName):
     ResponseMode = request.GET.get('mode', 'file_id')
+
+    ViewName = f"{ViewName}?mode={ResponseMode}"
 
     UserItem = UserApiKeyItem.user
 
@@ -105,7 +107,7 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
 
     _AddApiKeyCreditHistory(
         UserApiKeyItem=UserApiKeyItem,
-        data_request_uri=request.META['RAW_URI'],
+        data_request_uri=ViewName,
         response_size=TransferSize,
         request_chunk_size=CreditCalculateData['chunk_size'],
         chunk_count=CreditCalculateData['chunk_size_count'],
@@ -197,7 +199,7 @@ def EmailToPDFView(request):
         if PDFPath is None or PDFFileSize is None:
             return JsonResponse({"error": "Conversion failed."}, status=400)
 
-        return _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, PDFFileSize)
+        return _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, PDFFileSize, '/api/email-to-pdf/')
 
     return JsonResponse({"error": "No email received."}, status=400)
 
@@ -229,7 +231,7 @@ def AttachmentToPDFView(request):
         if PDFPath is None or PDFFileSize is None:
             return JsonResponse({"error": "Conversion failed."}, status=400)
 
-        return _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, PDFFileSize)
+        return _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, PDFFileSize, '/api/attachment-to-pdf/')
 
     return JsonResponse({"error": "No attachment files received."}, status=400)
 
@@ -289,7 +291,7 @@ def DownloadPDFView(request, download_token):
 
     _AddApiKeyCreditHistory(
         UserApiKeyItem=UserApiKeyItem,
-        data_request_uri=f"{request.META['RAW_URI']} <{os.path.basename(converted_email.file_path)}>",
+        data_request_uri=f"/api/download/{download_token}/ <{os.path.basename(converted_email.file_path)}>",
         response_size=TransferSize,
         request_chunk_size=CreditCalculateData['chunk_size'],
         chunk_count=CreditCalculateData['chunk_size_count'],

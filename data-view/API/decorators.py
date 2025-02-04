@@ -42,11 +42,11 @@ def valid_api_key(func):
                     )
             else:
                 return JsonResponse(
-                    {"message": "Invalid API key."},
-                    status=401,
+                    {"message": f"Invalid API key: {request.headers['x-api-key']}"},
+                    status=403,
                 )
         return JsonResponse(
-            {"message": "Access denied"},
-            status=401,
+            {"message": f"Access denied {request.headers}"},
+            status=403,
         )
     return decorated

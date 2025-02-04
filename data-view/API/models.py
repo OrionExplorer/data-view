@@ -23,7 +23,7 @@ class ApiKey(models.Model):
         verbose_name_plural = 'API keys'
 
     api_key = models.CharField(max_length=32, verbose_name='Key', blank=False, null=False, default=GenerateAPIKey())
-    credits = models.DecimalField(max_digits=19, decimal_places=2, verbose_name='Credits', default=1, blank=False, null=False, validators=[MinValueValidator(1)])
+    credits = models.DecimalField(max_digits=19, decimal_places=2, verbose_name='Credits', default=1, blank=False, null=False, validators=[MinValueValidator(0)])
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now=False, auto_now_add=True, null=True, blank=True, verbose_name=u'created')
 
