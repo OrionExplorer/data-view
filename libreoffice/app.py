@@ -25,6 +25,8 @@ def convert_to_pdf():
         filename = file.filename
         content = file.read()
 
+
+
     input_dir = "/shared/input"
     output_dir = "/shared/output"
     os.makedirs(input_dir, exist_ok=True)
@@ -32,6 +34,9 @@ def convert_to_pdf():
 
     unique_id = str(uuid.uuid4())
     input_file_path = os.path.join(input_dir, f"{unique_id}_{filename}")
+
+    if not input_file_path.startswith(input_dir):
+        return jsonify({'error': f'Parameter \"filename\" is invalid.'}), 400
 
     with open(input_file_path, 'wb') as f:
         f.write(content)
