@@ -13,15 +13,14 @@ The system provides endpoints for:
 ## 📚 Table of Contents
 
 1. [📊 Use Cases for DataView API](#-use-cases-for-dataview-api)
+   - [⚙️ Using the `mode` Parameter](#️-using-the-mode-parameter)
    - [📧 `/api/email-to-pdf/` – Email to PDF Conversion](#-apiemail-to-pdf--email-to-pdf-conversion)
-     - [✅ 1. Use Case: Converting EML Files to PDF](#-1-use-case-converting-eml-files-to-pdf)
-     - [✅ 2. Use Case: Sending Email Data as JSON](#-2-use-case-sending-email-data-as-json)
+     - [✅ 1. Use Case: Converting EML Files to PDF](#️-1-use-case-converting-eml-files-to-pdf)
+     - [✅ 2. Use Case: Sending Email Data as JSON](#️-2-use-case-sending-email-data-as-json)
    - [📎 `/api/attachment-to-pdf/` – Attachment to PDF Conversion](#-apiattachment-to-pdf--attachment-to-pdf-conversion)
-     - [✅ 1. Use Case: Converting Uploaded Files](#-1-use-case-converting-uploaded-files)
-     - [✅ 2. Use Case: Sending Attachment as Base64](#-2-use-case-sending-attachment-as-base64)
+     - [✅ 1. Use Case: Converting Uploaded Files](#️-1-use-case-converting-uploaded-files)
+     - [✅ 2. Use Case: Sending Attachment as Base64](#️-2-use-case-sending-attachment-as-base64)
    - [📥 `/api/download/` – Download Converted PDFs](#-apidownload--download-converted-pdfs)
-     - [✅ 1. Use Case: Downloading a Converted Email PDF](#-1-use-case-downloading-a-converted-email-pdf)
-     - [✅ 2. Use Case: Downloading a Converted Attachment PDF](#-2-use-case-downloading-a-converted-attachment-pdf)
 2. [🚨 Error Handling](#-error-handling)
    - [❌ 1. Insufficient Credits](#-1-insufficient-credits)
    - [❌ 2. Invalid API Key](#-2-invalid-api-key)
@@ -60,6 +59,21 @@ This section describes common use cases for interacting with the DataView API, f
 
 These endpoints support both simple and advanced workflows, making DataView flexible for different business scenarios.
 
+### ⚙️ Using the `mode` Parameter
+
+The `mode` parameter allows you to control the format of the API response. It can be passed as a **GET** parameter in the URL:
+
+- **`mode=file_id`** (default) – Returns a `file_id` for downloading the PDF later.
+- **`mode=inline_pdf`** – Returns the PDF directly in the response.
+- **`mode=base64_pdf`** – Returns the PDF as a Base64-encoded string in JSON.
+
+Example:
+```bash
+POST /api/email-to-pdf/?mode=inline_pdf
+```
+
+**Security Note:** When using `mode=inline_pdf` or `mode=base64_pdf`, the generated PDF is **not stored on the server**. The file is processed in memory and deleted immediately after the response is sent. This approach helps meet data protection regulations such as **GDPR**, **HIPAA**, and **ISO/IEC 27001**, ensuring that sensitive data is not retained unnecessarily.
+
 ---
 
 ## 📧 `/api/email-to-pdf/` – Email to PDF Conversion
@@ -68,53 +82,45 @@ This endpoint converts an entire email into a PDF file, preserving key metadata 
 
 ### ✅ **1. Use Case: Converting EML Files to PDF**
 
-- **Scenario:** A user has received an email in `.eml` format and wants to archive it as a PDF for legal compliance.  
-- **Request Format:** `multipart/form-data`
-
-#### **Example Request:**
-
+**Request:**
 ```bash
-curl -X POST "http://data-view.local/api/email-to-pdf/" \
-     -H "x-api-key: YOUR_API_KEY" \
-     -F "file=@/path/to/email.eml"
+POST /api/email-to-pdf/?mode=file_id
+Content-Type: multipart/form-data
+X-API-KEY: your_api_key
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="email.eml"
+Content-Type: message/rfc822
+
+<email content>
+--boundary--
 ```
 
-#### **Response:**
-
+**Response:**
 ```json
 {
-  "status": "success",
-  "file_id": "abc123xyz",
-  "file_size": 204800
+  "file_id": "abc123xyz"
 }
 ```
 
----
-
 ### ✅ **2. Use Case: Sending Email Data as JSON**
 
-- **Scenario:** An external system automatically forwards emails as JSON (without `.eml` files) to convert them into PDFs for quick previews.  
-- **Request Format:** `application/json`
-
-#### **Example Request:**
-
+**Request:**
 ```bash
-curl -X POST "http://data-view.local/api/email-to-pdf/" \
-     -H "x-api-key: YOUR_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "subject": "Project Update",
-           "sender": "alice@example.com",
-           "recipient": "bob@example.com",
-           "body": "Hello Bob, here is the project update.",
-           "attachments": [
-               {
-                   "filename": "report.docx",
-                   "content": "BASE64_ENCODED_CONTENT"
-               }
-           ]
-         }'
+POST /api/email-to-pdf/?mode=inline_pdf
+Content-Type: application/json
+X-API-KEY: your_api_key
+
+{
+  "subject": "Project Update",
+  "sender": "alice@example.com",
+  "recipient": "bob@example.com",
+  "body": "Hello Bob, here is the project update."
+}
 ```
+
+**Response:**
+- Returns the PDF directly with `Content-Type: application/pdf`.
 
 ---
 
@@ -124,44 +130,46 @@ This endpoint is designed to convert document attachments (e.g., DOCX, XLSX, CSV
 
 ### ✅ **1. Use Case: Converting Uploaded Files**
 
-- **Scenario:** A user uploads a Microsoft Word document to convert it into a PDF for secure sharing.  
-- **Request Format:** `multipart/form-data`
-
-#### **Example Request:**
-
+**Request:**
 ```bash
-curl -X POST "http://data-view.local/api/attachment-to-pdf/" \
-     -H "x-api-key: YOUR_API_KEY" \
-     -F "file=@/path/to/document.docx"
+POST /api/attachment-to-pdf/?mode=file_id
+Content-Type: multipart/form-data
+X-API-KEY: your_api_key
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="document.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+<binary file content>
+--boundary--
 ```
 
-#### **Response:**
-
+**Response:**
 ```json
 {
-  "status": "success",
-  "file_id": "def456uvw",
-  "file_size": 102400
+  "file_id": "def456uvw"
 }
 ```
 
----
-
 ### ✅ **2. Use Case: Sending Attachment as Base64**
 
-- **Scenario:** An automated system sends a document (encoded in Base64) directly to the API for conversion without storing it locally.  
-- **Request Format:** `application/json`
-
-#### **Example Request:**
-
+**Request:**
 ```bash
-curl -X POST "http://data-view.local/api/attachment-to-pdf/" \
-     -H "x-api-key: YOUR_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "filename": "invoice.xlsx",
-           "content": "BASE64_ENCODED_CONTENT"
-         }'
+POST /api/attachment-to-pdf/?mode=base64_pdf
+Content-Type: application/json
+X-API-KEY: your_api_key
+
+{
+  "filename": "report.docx",
+  "content": "BASE64_ENCODED_CONTENT"
+}
+```
+
+**Response:**
+```json
+{
+  "pdf_base64": "JVBERi0xLjQKJ... (truncated)"
+}
 ```
 
 ---
@@ -170,31 +178,14 @@ curl -X POST "http://data-view.local/api/attachment-to-pdf/" \
 
 This endpoint allows users to download previously converted PDF files using the unique `file_id` received after conversion.
 
-### ✅ **1. Use Case: Downloading a Converted Email PDF**
-
-- **Scenario:** A user wants to download the PDF generated from an email conversion.
-
-#### **Example Request:**
-
+**Request:**
 ```bash
-curl -X GET "http://data-view.local/api/download/abc123xyz/" \
-     -H "x-api-key: YOUR_API_KEY" \
-     -o "email_converted.pdf"
+GET /download/abc123xyz
+X-API-KEY: your_api_key
 ```
 
----
-
-### ✅ **2. Use Case: Downloading a Converted Attachment PDF**
-
-- **Scenario:** A PDF generated from an attachment conversion needs to be retrieved for record-keeping.
-
-#### **Example Request:**
-
-```bash
-curl -X GET "http://data-view.local/api/download/def456uvw/" \
-     -H "x-api-key: YOUR_API_KEY" \
-     -o "attachment_converted.pdf"
-```
+**Response:**
+- Returns the converted PDF file.
 
 ---
 

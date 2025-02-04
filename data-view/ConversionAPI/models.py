@@ -10,18 +10,12 @@ class BillingMixin:
         return cls.billing
 
 
-class ConvertedEmail(models.Model, BillingMixin):
+class ConvertedEmail(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     file_path = models.CharField(max_length=255, verbose_name="File path")
     file_size = models.PositiveIntegerField(default=0, verbose_name="File size")
     created = models.DateTimeField(auto_now_add=True)
     download_token = models.CharField(max_length=32, verbose_name="Download token", default=_InternalIdentifierGenerator)
-
-    billing = {
-        'chunk_KB': 5,
-        'credits': 0.5,
-        'min_chunk_KB': 5
-    }
 
     def __str__(self):
         return f"Email for {self.user.username} at {str(timezone.localtime(self.created))[:19]}"

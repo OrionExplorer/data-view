@@ -22,10 +22,29 @@ class ApiKey(models.Model):
         verbose_name = 'API key'
         verbose_name_plural = 'API keys'
 
-    api_key = models.CharField(max_length=32, verbose_name='key', blank=False, null=False, default=GenerateAPIKey())
-    credits = models.DecimalField(max_digits=19, decimal_places=2, verbose_name='credits', default=1, blank=False, null=False, validators=[MinValueValidator(1)])
+    api_key = models.CharField(max_length=32, verbose_name='Key', blank=False, null=False, default=GenerateAPIKey())
+    credits = models.DecimalField(max_digits=19, decimal_places=2, verbose_name='Credits', default=1, blank=False, null=False, validators=[MinValueValidator(1)])
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now=False, auto_now_add=True, null=True, blank=True, verbose_name=u'created')
+
+    # Billing Configuration
+    billing_credit_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.1,  # Domyślny koszt 0.1 kredytu za jednostkę
+        validators=[MinValueValidator(0.01)],
+        verbose_name='Credit Cost per Chunk'
+    )
+    billing_chunk_kb = models.PositiveIntegerField(
+        default=10,  # Domyślnie 10 KB jako jednostka rozliczeniowa
+        validators=[MinValueValidator(1)],
+        verbose_name='Chunk Size (KB)'
+    )
+    billing_min_chunk_kb = models.PositiveIntegerField(
+        default=10,  # Minimalny rozmiar rozliczeniowy 10 KB
+        validators=[MinValueValidator(1)],
+        verbose_name='Minimum Chunk Size (KB)'
+    )
 
     def clean(self):
         ApiKeyMatch = ApiKey.objects.filter(api_key=self.api_key).exclude(id=self.id)

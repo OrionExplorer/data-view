@@ -31,6 +31,17 @@ def landing_page(request):
     return render(request, 'dataview_landing_page.html')
 
 
+def HandleHTTPResponse(Mode, PDFPath, DownloadToken=None):
+    if Mode == 'inline_pdf':
+        return FileResponse(open(PDFPath, 'rb'), content_type='application/pdf')
+    elif Mode == 'base64_pdf':
+        with open(PDFPath, 'rb') as PDFFile:
+            EncodedPDF = base64.b64encode(PDFFile.read()).decode('utf-8')
+        return JsonResponse({"pdf_base64": EncodedPDF})
+    else:
+        return JsonResponse({"file_id": DownloadToken})
+
+
 @csrf_exempt
 @valid_api_key
 def EmailToPDFView(request):
@@ -46,6 +57,8 @@ def EmailToPDFView(request):
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 
     if request.method == 'POST':
+        ResponseMode = request.GET.get('mode', 'file_id')
+
         if request.content_type.startswith('multipart/form-data'):
             file = request.FILES['file']
             PDFPath, FileSize = ConvertEmailToPDF(file)
@@ -80,14 +93,18 @@ def EmailToPDFView(request):
             PDFPath, FileSize = ConvertEmailToPDF(eml_file)
 
         CreditsLeft = UserApiKeyItem.credits
-        BillingInfo = ConvertedEmail.get_billing()
+        BillingInfo = {
+            'chunk_KB': UserApiKeyItem.billing_chunk_kb, 
+            'credits': UserApiKeyItem.billing_credit_cost,
+            'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
+        }
 
         TransferSize = round(FileSize / 1000, 1)
         CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
         CreditTransferCost = CreditCalculateData['credit_to_charge']
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
-        PredictedBallance = round(CreditsLeft - Decimal.from_float(CreditTransferCost), 1)
+        PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
         if PredictedBallance < 0.0:
             LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
             return JsonResponse(
@@ -133,10 +150,14 @@ def EmailToPDFView(request):
             download_token=DownloadToken
         )
 
-        return JsonResponse({
-            "file_id": converted_email.download_token,
-            "file_size": converted_email.file_size
-        })
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
+        PreparedResponse = HandleHTTPResponse(Mode=ResponseMode, PDFPath=PDFPath, DownloadToken=DownloadToken)
+        if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
+            DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
+            if os.path.exists(PDFPath):  # Nie przechowujemy pliku
+                os.remove(PDFPath)
+
+        return PreparedResponse
 
     return JsonResponse({"error": "No email received."}, status=400)
 
@@ -156,6 +177,8 @@ def AttachmentToPDFView(request):
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 
     if request.method == 'POST':
+        ResponseMode = request.GET.get('mode', 'file_id')
+
         if request.content_type == 'application/json':
             data = json.loads(request.body)
             filename = data.get('filename')
@@ -169,14 +192,18 @@ def AttachmentToPDFView(request):
             return JsonResponse({"error": "Conversion failed."}, status=400)
 
         CreditsLeft = UserApiKeyItem.credits
-        BillingInfo = ConvertedEmail.get_billing()
+        BillingInfo = {
+            'chunk_KB': UserApiKeyItem.billing_chunk_kb, 
+            'credits': UserApiKeyItem.billing_credit_cost,
+            'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
+        }
 
         TransferSize = round(FileSize / 1000, 1)
         CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
         CreditTransferCost = CreditCalculateData['credit_to_charge']
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
-        PredictedBallance = round(CreditsLeft - Decimal.from_float(CreditTransferCost), 1)
+        PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
         if PredictedBallance < 0.0:
             LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
             return JsonResponse(
@@ -222,11 +249,14 @@ def AttachmentToPDFView(request):
             download_token=DownloadToken
         )
 
-        return JsonResponse({
-            "file_id": converted_email.download_token,
-            "file_size": converted_email.file_size
-        })
-        return JsonResponse({'pdf_url': f'{PDFPath}'})
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
+        PreparedResponse = HandleHTTPResponse(Mode=ResponseMode, PDFPath=PDFPath, DownloadToken=DownloadToken)
+        if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
+            DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
+            if os.path.exists(PDFPath):  # Nie przechowujemy pliku
+                os.remove(PDFPath)
+
+        return PreparedResponse
 
     return JsonResponse({"error": "No attachment files received."}, status=400)
 
@@ -251,7 +281,11 @@ def DownloadPDFView(request, download_token):
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 
     CreditsLeft = UserApiKeyItem.credits
-    BillingInfo = ConvertedEmail.get_billing()
+    BillingInfo = {
+        'chunk_KB': UserApiKeyItem.billing_chunk_kb, 
+        'credits': UserApiKeyItem.billing_credit_cost,
+        'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
+    }
 
     FileSize = converted_email.file_size
     TransferSize = round(FileSize / 1000, 1)
@@ -259,7 +293,7 @@ def DownloadPDFView(request, download_token):
     CreditTransferCost = CreditCalculateData['credit_to_charge']
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
-    PredictedBallance = round(CreditsLeft - Decimal.from_float(CreditTransferCost), 1)
+    PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
     if PredictedBallance < 0.0:
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
         return JsonResponse(
@@ -294,6 +328,7 @@ def DownloadPDFView(request, download_token):
     )
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
 
-    DownloadLog.objects.create(user=user, file=converted_email, ip_address=UserIPAddress)
+    if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
+        DownloadLog.objects.create(user=user, file=converted_email, ip_address=UserIPAddress)
 
     return FileResponse(open(converted_email.file_path, 'rb'), content_type='application/pdf')

@@ -64,7 +64,7 @@ def convert_to_pdf():
 
     finally:
         if os.path.exists(input_file_path):
-            pass  # os.remove(input_file_path)
+            os.remove(input_file_path)
 
 
 if __name__ == '__main__':

@@ -26,9 +26,7 @@ admin.site.site_title = 'data-view'
 
 urlpatterns = [
     path('', views.landing_page, name='landing'),
-    path('admin/', admin.site.urls),
-    # path('items/', views.GetItemsListDetails),
-    # path('items/<str:model>/', views.GetItemsTemplate),
+    path('core/', admin.site.urls),
     path('api/', include('ConversionAPI.urls')),  # Dodanie nowych endpointów
 ]
 
