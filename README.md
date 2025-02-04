@@ -257,6 +257,9 @@ The core model for authentication and billing is the **`ApiKey`** model, which i
 Each `ApiKey` includes the following properties:
 - **`api_key`** – Auto-generated key used for authenticating API requests via the custom header `x-api-key`.  
 - **`credits`** – A virtual currency used to track API usage. Credits are consumed based on data transfers during both uploads and downloads.
+- **`billing_credit_cost`** – Defines the cost (in credits) for each data chunk processed.
+- **`billing_chunk_kb`** – Specifies the size of each data chunk (in KB) used for billing.
+- **`billing_min_chunk_kb`** – Defines the minimum data size (in KB) that will be billed, even if the actual data is smaller.
 
 ---
 
