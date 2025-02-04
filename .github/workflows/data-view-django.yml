@@ -26,7 +26,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5455
+          - 5432:5432
 
     steps:
     - uses: actions/checkout@v4
@@ -49,7 +49,7 @@ jobs:
         SQL_USER: "user"
         SQL_PASSWORD: "password"
         SQL_HOST: "127.0.0.1"
-        SQL_PORT: "5455"
+        SQL_PORT: "5432"
         HOME_DIR: "/code"
         SESSION_SECRET: "SessionSecret"
         TIMEZONE: "Europe/Warsaw"
