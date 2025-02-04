@@ -57,9 +57,12 @@ def EmailToPDFView(request):
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 
     if request.method == 'POST':
+
+        SourceFileSize = 0
         ResponseMode = request.GET.get('mode', 'file_id')
 
         if request.content_type.startswith('multipart/form-data'):
+            SourceFileSize = int(request.headers['Content-Length'])
             file = request.FILES['file']
             PDFPath, FileSize = ConvertEmailToPDF(file)
         elif request.content_type == 'application/json':
@@ -69,6 +72,7 @@ def EmailToPDFView(request):
             subject = data.get('subject', 'No Subject')
             body = data.get('body')
             attachments = data.get('attachments', [])
+            SourceFileSize = len(body)
 
             if not sender or not recipient or not body:
                 return JsonResponse({'error': 'Missing required fields.'}, status=400)
@@ -99,7 +103,10 @@ def EmailToPDFView(request):
             'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
         }
 
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - source size is {round(SourceFileSize/1000, 1)} KB.")
         TransferSize = round(FileSize / 1000, 1)
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - output size is {TransferSize} KB.")
         CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
         CreditTransferCost = CreditCalculateData['credit_to_charge']
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
@@ -143,15 +150,19 @@ def EmailToPDFView(request):
         DownloadToken = _InternalIdentifierGenerator(32)
 
         # Zapis pliku z powiązaniem do użytkownika i tokena
+        SavePDFPath = PDFPath
+        if ResponseMode != 'file_id':
+            SavePDFPath = f"{SavePDFPath} (removed)"
+
         converted_email = ConvertedEmail.objects.create(
             user=UserItem,
-            file_path=PDFPath,
+            file_path=SavePDFPath,
             file_size=FileSize,
             download_token=DownloadToken
         )
 
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
         PreparedResponse = HandleHTTPResponse(Mode=ResponseMode, PDFPath=PDFPath, DownloadToken=DownloadToken)
+
         if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
             DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
             if os.path.exists(PDFPath):  # Nie przechowujemy pliku
@@ -177,14 +188,18 @@ def AttachmentToPDFView(request):
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 
     if request.method == 'POST':
+
+        SourceFileSize = 0
         ResponseMode = request.GET.get('mode', 'file_id')
 
         if request.content_type == 'application/json':
+            SourceFileSize = len(content)
             data = json.loads(request.body)
             filename = data.get('filename')
             content = data.get('content')
             PDFPath, FileSize = convert_attachment_to_pdf(content=content, filename=filename, api_key=UserApiKeyItem.api_key)
         else:
+            SourceFileSize = int(request.headers['Content-Length'])
             file = request.FILES['file']
             PDFPath, FileSize = convert_attachment_to_pdf(file=file, api_key=UserApiKeyItem.api_key)
 
@@ -198,7 +213,10 @@ def AttachmentToPDFView(request):
             'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
         }
 
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - source size is {round(SourceFileSize/1000, 1)} KB.")
         TransferSize = round(FileSize / 1000, 1)
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - output size is {TransferSize} KB.")
         CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
         CreditTransferCost = CreditCalculateData['credit_to_charge']
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
@@ -249,8 +267,8 @@ def AttachmentToPDFView(request):
             download_token=DownloadToken
         )
 
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
         PreparedResponse = HandleHTTPResponse(Mode=ResponseMode, PDFPath=PDFPath, DownloadToken=DownloadToken)
+
         if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
             DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
             if os.path.exists(PDFPath):  # Nie przechowujemy pliku
@@ -328,7 +346,6 @@ def DownloadPDFView(request, download_token):
     )
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
 
-    if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
-        DownloadLog.objects.create(user=user, file=converted_email, ip_address=UserIPAddress)
+    DownloadLog.objects.create(user=user, file=converted_email, ip_address=UserIPAddress)
 
     return FileResponse(open(converted_email.file_path, 'rb'), content_type='application/pdf')
