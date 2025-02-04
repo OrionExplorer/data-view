@@ -75,7 +75,7 @@ def is_file_format_valid(file):
     return False
 
 
-def convert_attachment_to_pdf(file=None, content=None, filename=None, api_key=None):
+def ConvertAttachmentToPDF(file=None, content=None, filename=None, api_key=None):
     try:
         if file:
             file_extension = os.path.splitext(file.name)[1].lower()
@@ -113,7 +113,7 @@ def convert_attachment_to_pdf(file=None, content=None, filename=None, api_key=No
 
         if response.status_code == 200:
             data = response.json()
-            LOG_data(text=f"[convert_attachment_to_pdf] response from converter: {data}")
+            LOG_data(text=f"[ConvertAttachmentToPDF] response from converter: {data}")
             pdf_path = data.get('pdf_path')
             file_size = data.get('file_size')
             return pdf_path, file_size

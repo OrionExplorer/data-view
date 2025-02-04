@@ -8,7 +8,7 @@ from .models import ConvertedEmail
 from .models import DownloadLog
 from .utils.email_to_pdf import ConvertEmailToPDF
 from .utils.email_to_pdf import _InternalIdentifierGenerator
-from .utils.attachment_to_pdf import convert_attachment_to_pdf
+from .utils.attachment_to_pdf import ConvertAttachmentToPDF
 from API.decorators import valid_api_key
 from django.http import FileResponse, Http404
 from django.core.exceptions import PermissionDenied
@@ -42,6 +42,87 @@ def HandleHTTPResponse(Mode, PDFPath, DownloadToken=None):
         return JsonResponse({"file_id": DownloadToken})
 
 
+def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, OutputFileSize):
+
+    ResponseMode = request.GET.get('mode', 'file_id')
+
+    UserItem = UserApiKeyItem.user
+
+    CreditsLeft = UserApiKeyItem.credits
+    BillingInfo = {
+        'chunk_KB': UserApiKeyItem.billing_chunk_kb, 
+        'credits': UserApiKeyItem.billing_credit_cost,
+        'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
+    }
+
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - source size is {round(SourceFileSize/1000, 1)} KB.")
+    TransferSize = round(OutputFileSize / 1000, 1)
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - output size is {TransferSize} KB.")
+    CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
+    CreditTransferCost = CreditCalculateData['credit_to_charge']
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
+    PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
+    if PredictedBallance < 0.0:
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
+        return JsonResponse(
+            {
+                "error": "Insufficient credits. Please top up your account.",
+                "available_credits": float(CreditsLeft),
+                "required_credits": float(CreditTransferCost)
+            },
+            json_dumps_params={'indent': 2},
+            status=402,
+        )
+    UserApiKeyItem.credits = max(0, PredictedBallance)
+    UserApiKeyItem.save()
+    UserIPAddress = None
+
+    if 'HTTP_X_FORWARDED_FOR' in request.META:
+        UserIPAddress = request.META['HTTP_X_FORWARDED_FOR'].split(',')[-1].strip()
+    else:
+        UserIPAddress = request.META['REMOTE_ADDR']
+
+    _AddApiKeyCreditHistory(
+        UserApiKeyItem=UserApiKeyItem,
+        data_request_uri=request.META['RAW_URI'],
+        response_size=TransferSize,
+        request_chunk_size=CreditCalculateData['chunk_size'],
+        chunk_count=CreditCalculateData['chunk_size_count'],
+        credit_per_chunk=CreditCalculateData['credit_per_chunk'],
+        total_credit_cost=CreditCalculateData['credit_to_charge'],
+        credit_balance=CreditsLeft,
+        ip=UserIPAddress,
+        request_uid=request.META['data-view-uid']
+    )
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
+
+    # Generowanie unikalnego tokena
+    DownloadToken = _InternalIdentifierGenerator(32)
+
+    SavePDFPath = PDFPath
+    if ResponseMode != 'file_id':
+        SavePDFPath = f"{SavePDFPath} (removed)"
+
+    # Zapis pliku z powiązaniem do użytkownika i tokena
+    converted_email = ConvertedEmail.objects.create(
+        user=UserItem,
+        file_path=SavePDFPath,
+        file_size=OutputFileSize,
+        download_token=DownloadToken
+    )
+
+    PreparedResponse = HandleHTTPResponse(Mode=ResponseMode, PDFPath=PDFPath, DownloadToken=DownloadToken)
+
+    if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
+        DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
+        if os.path.exists(PDFPath):  # Nie przechowujemy pliku
+            os.remove(PDFPath)
+
+    return PreparedResponse
+
+
 @csrf_exempt
 @valid_api_key
 def EmailToPDFView(request):
@@ -59,12 +140,11 @@ def EmailToPDFView(request):
     if request.method == 'POST':
 
         SourceFileSize = 0
-        ResponseMode = request.GET.get('mode', 'file_id')
 
         if request.content_type.startswith('multipart/form-data'):
             SourceFileSize = int(request.headers['Content-Length'])
             file = request.FILES['file']
-            PDFPath, FileSize = ConvertEmailToPDF(file)
+            PDFPath, PDFFileSize = ConvertEmailToPDF(file)
         elif request.content_type == 'application/json':
             data = json.loads(request.body)
             sender = data.get('sender')
@@ -94,81 +174,12 @@ def EmailToPDFView(request):
 
             # Konwersja do PDF
             eml_file = BytesIO(msg.as_bytes())
-            PDFPath, FileSize = ConvertEmailToPDF(eml_file)
+            PDFPath, PDFFileSize = ConvertEmailToPDF(eml_file)
 
-        CreditsLeft = UserApiKeyItem.credits
-        BillingInfo = {
-            'chunk_KB': UserApiKeyItem.billing_chunk_kb, 
-            'credits': UserApiKeyItem.billing_credit_cost,
-            'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
-        }
+        if PDFPath is None or PDFFileSize is None:
+            return JsonResponse({"error": "Conversion failed."}, status=400)
 
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - source size is {round(SourceFileSize/1000, 1)} KB.")
-        TransferSize = round(FileSize / 1000, 1)
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - output size is {TransferSize} KB.")
-        CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
-        CreditTransferCost = CreditCalculateData['credit_to_charge']
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
-        PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
-        if PredictedBallance < 0.0:
-            LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
-            return JsonResponse(
-                {
-                    "error": "Insufficient credits. Please top up your account.",
-                    "available_credits": float(CreditsLeft),
-                    "required_credits": float(CreditTransferCost)
-                },
-                json_dumps_params={'indent': 2},
-                status=402,
-            )
-        UserApiKeyItem.credits = max(0, PredictedBallance)
-        UserApiKeyItem.save()
-        UserIPAddress = None
-
-        if 'HTTP_X_FORWARDED_FOR' in request.META:
-            UserIPAddress = request.META['HTTP_X_FORWARDED_FOR'].split(',')[-1].strip()
-        else:
-            UserIPAddress = request.META['REMOTE_ADDR']
-
-        _AddApiKeyCreditHistory(
-            UserApiKeyItem=UserApiKeyItem,
-            data_request_uri=request.META['RAW_URI'],
-            response_size=TransferSize,
-            request_chunk_size=CreditCalculateData['chunk_size'],
-            chunk_count=CreditCalculateData['chunk_size_count'],
-            credit_per_chunk=CreditCalculateData['credit_per_chunk'],
-            total_credit_cost=CreditCalculateData['credit_to_charge'],
-            credit_balance=CreditsLeft,
-            ip=UserIPAddress,
-            request_uid=request.META['data-view-uid']
-        )
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
-
-        # Generowanie unikalnego tokena
-        DownloadToken = _InternalIdentifierGenerator(32)
-
-        # Zapis pliku z powiązaniem do użytkownika i tokena
-        SavePDFPath = PDFPath
-        if ResponseMode != 'file_id':
-            SavePDFPath = f"{SavePDFPath} (removed)"
-
-        converted_email = ConvertedEmail.objects.create(
-            user=UserItem,
-            file_path=SavePDFPath,
-            file_size=FileSize,
-            download_token=DownloadToken
-        )
-
-        PreparedResponse = HandleHTTPResponse(Mode=ResponseMode, PDFPath=PDFPath, DownloadToken=DownloadToken)
-
-        if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
-            DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
-            if os.path.exists(PDFPath):  # Nie przechowujemy pliku
-                os.remove(PDFPath)
-
-        return PreparedResponse
+        return _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, PDFFileSize)
 
     return JsonResponse({"error": "No email received."}, status=400)
 
@@ -197,84 +208,16 @@ def AttachmentToPDFView(request):
             data = json.loads(request.body)
             filename = data.get('filename')
             content = data.get('content')
-            PDFPath, FileSize = convert_attachment_to_pdf(content=content, filename=filename, api_key=UserApiKeyItem.api_key)
+            PDFPath, PDFFileSize = ConvertAttachmentToPDF(content=content, filename=filename, api_key=UserApiKeyItem.api_key)
         else:
             SourceFileSize = int(request.headers['Content-Length'])
             file = request.FILES['file']
-            PDFPath, FileSize = convert_attachment_to_pdf(file=file, api_key=UserApiKeyItem.api_key)
+            PDFPath, PDFFileSize = ConvertAttachmentToPDF(file=file, api_key=UserApiKeyItem.api_key)
 
-        if PDFPath is None or FileSize is None:
+        if PDFPath is None or PDFFileSize is None:
             return JsonResponse({"error": "Conversion failed."}, status=400)
 
-        CreditsLeft = UserApiKeyItem.credits
-        BillingInfo = {
-            'chunk_KB': UserApiKeyItem.billing_chunk_kb, 
-            'credits': UserApiKeyItem.billing_credit_cost,
-            'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
-        }
-
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - source size is {round(SourceFileSize/1000, 1)} KB.")
-        TransferSize = round(FileSize / 1000, 1)
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - output size is {TransferSize} KB.")
-        CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
-        CreditTransferCost = CreditCalculateData['credit_to_charge']
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
-        PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
-        if PredictedBallance < 0.0:
-            LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
-            return JsonResponse(
-                {
-                    "error": "Insufficient credits. Please top up your account.",
-                    "available_credits": float(CreditsLeft),
-                    "required_credits": float(CreditTransferCost)
-                },
-                json_dumps_params={'indent': 2},
-                status=402,
-            )
-        UserApiKeyItem.credits = max(0, PredictedBallance)
-        UserApiKeyItem.save()
-        UserIPAddress = None
-
-        if 'HTTP_X_FORWARDED_FOR' in request.META:
-            UserIPAddress = request.META['HTTP_X_FORWARDED_FOR'].split(',')[-1].strip()
-        else:
-            UserIPAddress = request.META['REMOTE_ADDR']
-
-        _AddApiKeyCreditHistory(
-            UserApiKeyItem=UserApiKeyItem,
-            data_request_uri=request.META['RAW_URI'],
-            response_size=TransferSize,
-            request_chunk_size=CreditCalculateData['chunk_size'],
-            chunk_count=CreditCalculateData['chunk_size_count'],
-            credit_per_chunk=CreditCalculateData['credit_per_chunk'],
-            total_credit_cost=CreditCalculateData['credit_to_charge'],
-            credit_balance=CreditsLeft,
-            ip=UserIPAddress,
-            request_uid=request.META['data-view-uid']
-        )
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
-
-        # Generowanie unikalnego tokena
-        DownloadToken = _InternalIdentifierGenerator(32)
-
-        # Zapis pliku z powiązaniem do użytkownika i tokena
-        converted_email = ConvertedEmail.objects.create(
-            user=UserItem,
-            file_path=PDFPath,
-            file_size=FileSize,
-            download_token=DownloadToken
-        )
-
-        PreparedResponse = HandleHTTPResponse(Mode=ResponseMode, PDFPath=PDFPath, DownloadToken=DownloadToken)
-
-        if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
-            DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
-            if os.path.exists(PDFPath):  # Nie przechowujemy pliku
-                os.remove(PDFPath)
-
-        return PreparedResponse
+        return _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, PDFFileSize)
 
     return JsonResponse({"error": "No attachment files received."}, status=400)
 
