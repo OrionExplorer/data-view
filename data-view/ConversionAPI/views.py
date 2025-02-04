@@ -43,25 +43,44 @@ def HandleHTTPResponse(Mode, PDFPath, DownloadToken=None):
 
 
 def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, OutputFileSize):
-
     ResponseMode = request.GET.get('mode', 'file_id')
 
     UserItem = UserApiKeyItem.user
 
+    DownloadToken = _InternalIdentifierGenerator(32)
+
     CreditsLeft = UserApiKeyItem.credits
     BillingInfo = {
-        'chunk_KB': UserApiKeyItem.billing_chunk_kb, 
+        'chunk_KB': UserApiKeyItem.billing_chunk_kb,
         'credits': UserApiKeyItem.billing_credit_cost,
         'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
     }
 
+    EncodedPDF = None
+
+    TransferSize = len(DownloadToken)
+
+    # Obliczenie rzeczywistego rozmiaru przesyłanych danych
+    if ResponseMode == 'inline_pdf':
+        TransferSize = OutputFileSize  # os.path.getsize(PDFPath)
+    elif ResponseMode == 'base64_pdf':
+        with open(PDFPath, 'rb') as PDFFile:
+            EncodedPDF = base64.b64encode(PDFFile.read()).decode('utf-8')
+            TransferSize = len(EncodedPDF)
+    else:
+        TransferSize = len(DownloadToken)
+
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Response mode is '{ResponseMode}'.")
-    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - source size is {round(SourceFileSize/1000, 1)} KB.")
-    TransferSize = round(OutputFileSize / 1000, 1)
-    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - output size is {TransferSize} KB.")
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - source size is {round(SourceFileSize / 1000, 1)} KB.")
+
+    TransferSize = round(TransferSize / 1000, 1)
+
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - PDF size is {round(OutputFileSize / 1000, 1)} KB.")
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - PDF size in {ResponseMode} mode is {TransferSize} KB.")
+
     CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
     CreditTransferCost = CreditCalculateData['credit_to_charge']
-    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
+
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
     PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
     if PredictedBallance < 0.0:
@@ -98,9 +117,6 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
     )
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
 
-    # Generowanie unikalnego tokena
-    DownloadToken = _InternalIdentifierGenerator(32)
-
     SavePDFPath = PDFPath
     if ResponseMode != 'file_id':
         SavePDFPath = f"{SavePDFPath} (removed)"
@@ -113,7 +129,14 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
         download_token=DownloadToken
     )
 
-    PreparedResponse = HandleHTTPResponse(Mode=ResponseMode, PDFPath=PDFPath, DownloadToken=DownloadToken)
+    PreparedResponse = JsonResponse({"file_id": DownloadToken})
+
+    if ResponseMode == 'inline_pdf':
+        PreparedResponse = FileResponse(open(PDFPath, 'rb'), content_type='application/pdf')
+    elif ResponseMode == 'base64_pdf':
+        PreparedResponse = JsonResponse({"pdf_base64": EncodedPDF})
+    else:
+        PreparedResponse = JsonResponse({"file_id": DownloadToken})
 
     if ResponseMode != 'file_id':  # Po konwersji od razu pobranie, a nie wygenerowanie identyfikatora do późniejszego pobrania
         DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
@@ -126,11 +149,6 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
 @csrf_exempt
 @valid_api_key
 def EmailToPDFView(request):
-    try:
-        UserItem = GetUserFromApiKey(request)
-    except PermissionDenied as e:
-        return JsonResponse({"error": str(e)}, status=403)
-
     UserApiKeyItem = None
     if 'x-api-id' in request.META:
         UserApiKeyItem = ApiKey.objects.filter(id=request.META['x-api-id']).last()
@@ -165,12 +183,12 @@ def EmailToPDFView(request):
             msg.set_content(body)
 
             # Przetwarzanie załączników
-            for attachment in attachments:
-                filename = attachment.get('filename')
-                content = attachment.get('content')
-                if filename and content:
-                    file_data = base64.b64decode(content)
-                    msg.add_attachment(file_data, maintype='application', subtype='octet-stream', filename=filename)
+            # for attachment in attachments:
+            #     filename = attachment.get('filename')
+            #     content = attachment.get('content')
+            #     if filename and content:
+            #         file_data = base64.b64decode(content)
+            #         msg.add_attachment(file_data, maintype='application', subtype='octet-stream', filename=filename)
 
             # Konwersja do PDF
             eml_file = BytesIO(msg.as_bytes())
@@ -187,11 +205,6 @@ def EmailToPDFView(request):
 @csrf_exempt
 @valid_api_key
 def AttachmentToPDFView(request):
-    try:
-        UserItem = GetUserFromApiKey(request)
-    except PermissionDenied as e:
-        return JsonResponse({"error": str(e)}, status=403)
-
     UserApiKeyItem = None
     if 'x-api-id' in request.META:
         UserApiKeyItem = ApiKey.objects.filter(id=request.META['x-api-id']).last()
@@ -201,13 +214,12 @@ def AttachmentToPDFView(request):
     if request.method == 'POST':
 
         SourceFileSize = 0
-        ResponseMode = request.GET.get('mode', 'file_id')
 
         if request.content_type == 'application/json':
-            SourceFileSize = len(content)
             data = json.loads(request.body)
             filename = data.get('filename')
             content = data.get('content')
+            SourceFileSize = len(content)
             PDFPath, PDFFileSize = ConvertAttachmentToPDF(content=content, filename=filename, api_key=UserApiKeyItem.api_key)
         else:
             SourceFileSize = int(request.headers['Content-Length'])
@@ -243,7 +255,7 @@ def DownloadPDFView(request, download_token):
 
     CreditsLeft = UserApiKeyItem.credits
     BillingInfo = {
-        'chunk_KB': UserApiKeyItem.billing_chunk_kb, 
+        'chunk_KB': UserApiKeyItem.billing_chunk_kb,
         'credits': UserApiKeyItem.billing_credit_cost,
         'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
     }
