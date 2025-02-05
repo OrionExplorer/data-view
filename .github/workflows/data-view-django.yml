@@ -29,22 +29,23 @@ jobs:
       - name: Wait for services to be ready
         run: |
           echo "Waiting for services to be ready..."
-          sleep 15  # Opcjonalne oczekiwanie
+          sleep 1  # Opcjonalne oczekiwanie
 
       - name: Run migrations
         run: |
+          docker compose exec -T core python data-view/manage.py collectstatic --noinput
           docker compose exec -T core python data-view/manage.py migrate
       - name: Check media, static files and shared folder
         run: |
           docker compose exec -T core ls -la /shared/
           docker compose exec -T core ls -la /code/
-          docker compose exec -T core ls -la /code/static
-          docker compose exec -T core ls -la /code/media
+          docker compose exec -T core ls -la /code/data-view/
       - name: Check LibreOffice
         run: |
           docker compose exec -T libreoffice soffice --version
       - name: Run tests
         run: |
+          docker compose exec -T core python data-view/manage.py inittestdata ConversionAPI
           docker compose exec -T core python data-view/manage.py test ConversionAPI
 
       - name: Tear down
