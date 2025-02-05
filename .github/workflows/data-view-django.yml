@@ -45,7 +45,7 @@ jobs:
           docker compose exec -T libreoffice soffice --version
       - name: Run tests
         run: |
-          docker compose exec -T core python data-view/manage.py inittestdata ConversionAPI
+          docker compose exec -T core python data-view/manage.py inittestdata
           docker compose exec -T core python data-view/manage.py test ConversionAPI
 
       - name: Tear down
