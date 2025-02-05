@@ -29,6 +29,10 @@ The system provides endpoints for:
 4. [💡 Final Notes](#-final-notes)
 5. [📊 Usage](#-usage)
    - [🔑 API Key Management](#-api-key-management)
+   - [📌 API Versioning](#-api-versioning)
+     - [🚀 Current Version](#-current-version)
+     - [📊 Versioning Strategy](#-versioning-strategy)
+     - [⚙️ How to Use Versions](#-how-to-use-versions)
 6. [💳 Billing System](#-billing-system)
    - [💡 Billing Example](#-billing-example)
      - [📤 Upload Calculation (5 MB file)](#-upload-calculation-5-mb-file)
@@ -260,6 +264,36 @@ Each `ApiKey` includes the following properties:
 - **`billing_credit_cost`** – Defines the cost (in credits) for each data chunk processed.
 - **`billing_chunk_kb`** – Specifies the size of each data chunk (in KB) used for billing.
 - **`billing_min_chunk_kb`** – Defines the minimum data size (in KB) that will be billed, even if the actual data is smaller.
+
+### 📌 API Versioning
+
+DataView API uses versioning to ensure backward compatibility while allowing for continuous improvements and feature updates.
+
+#### 🚀 **Current Version:** `v1`
+
+All API endpoints are prefixed with the version number:
+
+```
+/api/v1/email-to-pdf/
+/api/v1/attachment-to-pdf/
+/api/v1/download/<file_id>/
+```
+
+#### 📊 **Versioning Strategy:**
+
+- **Major Versions (v1, v2, ...):** Introduced when backward-incompatible changes are made.
+- **Minor Versions (v1.1, v1.2, ...):** For adding new features in a backward-compatible manner.
+- **Patch Versions (v1.1.1, v1.1.2, ...):** Bug fixes and security updates without affecting functionality.
+
+#### ⚙️ **How to Use Versions:**
+
+Simply include the version number in the API URL:
+
+```bash
+curl -X POST "http://data-view.local/api/v1/email-to-pdf/" \
+     -H "x-api-key: YOUR_API_KEY" \
+     -F "file=@/path/to/email.eml"
+```
 
 ---
 
