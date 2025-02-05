@@ -14,13 +14,13 @@ The system provides endpoints for:
 
 1. [📊 Use Cases for DataView API](#-use-cases-for-dataview-api)
    - [⚙️ Using the `mode` Parameter](#️-using-the-mode-parameter)
-   - [📧 `/api/email-to-pdf/` – Email to PDF Conversion](#-apiemail-to-pdf--email-to-pdf-conversion)
+   - [📧 `/api/v1/email-to-pdf/` – Email to PDF Conversion](#-apiv1email-to-pdf--email-to-pdf-conversion)
      - [✅ 1. Use Case: Converting EML Files to PDF](#️-1-use-case-converting-eml-files-to-pdf)
      - [✅ 2. Use Case: Sending Email Data as JSON](#️-2-use-case-sending-email-data-as-json)
-   - [📎 `/api/attachment-to-pdf/` – Attachment to PDF Conversion](#-apiattachment-to-pdf--attachment-to-pdf-conversion)
+   - [📎 `/api/v1/attachment-to-pdf/` – Attachment to PDF Conversion](#-apiv1attachment-to-pdf--attachment-to-pdf-conversion)
      - [✅ 1. Use Case: Converting Uploaded Files](#️-1-use-case-converting-uploaded-files)
      - [✅ 2. Use Case: Sending Attachment as Base64](#️-2-use-case-sending-attachment-as-base64)
-   - [📥 `/api/download/` – Download Converted PDFs](#-apidownload--download-converted-pdfs)
+   - [📥 `/api/v1/download/` – Download Converted PDFs](#-apiv1download--download-converted-pdfs)
 2. [🚨 Error Handling](#-error-handling)
    - [❌ 1. Insufficient Credits](#-1-insufficient-credits)
    - [❌ 2. Invalid API Key](#-2-invalid-api-key)
@@ -57,9 +57,9 @@ The system provides endpoints for:
 # 📊 Use Cases for DataView API
 
 This section describes common use cases for interacting with the DataView API, focusing on the following endpoints:  
-- **`/api/email-to-pdf/`** – Convert emails to PDF  
-- **`/api/attachment-to-pdf/`** – Convert attachments to PDF  
-- **`/api/download/`** – Download converted PDF files  
+- **`/api/v1/email-to-pdf/`** – Convert emails to PDF  
+- **`/api/v1/attachment-to-pdf/`** – Convert attachments to PDF  
+- **`/api/v1/download/`** – Download converted PDF files  
 
 These endpoints support both simple and advanced workflows, making DataView flexible for different business scenarios.
 
@@ -73,14 +73,14 @@ The `mode` parameter allows you to control the format of the API response. It ca
 
 Example:
 ```bash
-POST /api/email-to-pdf/?mode=inline_pdf
+POST /api/v1/email-to-pdf/?mode=inline_pdf
 ```
 
 **Security Note:** When using `mode=inline_pdf` or `mode=base64_pdf`, the generated PDF is **not stored on the server**. The file is processed in memory and deleted immediately after the response is sent. This approach helps meet data protection regulations such as **GDPR**, **HIPAA**, and **ISO/IEC 27001**, ensuring that sensitive data is not retained unnecessarily.
 
 ---
 
-## 📧 `/api/email-to-pdf/` – Email to PDF Conversion
+## 📧 `/api/v1/email-to-pdf/` – Email to PDF Conversion
 
 This endpoint converts an entire email into a PDF file, preserving key metadata (subject, sender, recipient, date) and the body content.
 
@@ -88,7 +88,7 @@ This endpoint converts an entire email into a PDF file, preserving key metadata 
 
 **Request:**
 ```bash
-POST /api/email-to-pdf/?mode=file_id
+POST /api/v1/email-to-pdf/?mode=file_id
 Content-Type: multipart/form-data
 X-API-KEY: your_api_key
 
@@ -111,7 +111,7 @@ Content-Type: message/rfc822
 
 **Request:**
 ```bash
-POST /api/email-to-pdf/?mode=inline_pdf
+POST /api/v1/email-to-pdf/?mode=inline_pdf
 Content-Type: application/json
 X-API-KEY: your_api_key
 
@@ -128,7 +128,7 @@ X-API-KEY: your_api_key
 
 ---
 
-## 📎 `/api/attachment-to-pdf/` – Attachment to PDF Conversion
+## 📎 `/api/v1/attachment-to-pdf/` – Attachment to PDF Conversion
 
 This endpoint is designed to convert document attachments (e.g., DOCX, XLSX, CSV) into PDF files for secure viewing.
 
@@ -136,7 +136,7 @@ This endpoint is designed to convert document attachments (e.g., DOCX, XLSX, CSV
 
 **Request:**
 ```bash
-POST /api/attachment-to-pdf/?mode=file_id
+POST /api/v1/attachment-to-pdf/?mode=file_id
 Content-Type: multipart/form-data
 X-API-KEY: your_api_key
 
@@ -159,7 +159,7 @@ Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 **Request:**
 ```bash
-POST /api/attachment-to-pdf/?mode=base64_pdf
+POST /api/v1/attachment-to-pdf/?mode=base64_pdf
 Content-Type: application/json
 X-API-KEY: your_api_key
 
@@ -178,7 +178,7 @@ X-API-KEY: your_api_key
 
 ---
 
-## 📥 `/api/download/` – Download Converted PDFs
+## 📥 `/api/v1/download/` – Download Converted PDFs
 
 This endpoint allows users to download previously converted PDF files using the unique `file_id` received after conversion.
 

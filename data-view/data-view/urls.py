@@ -25,7 +25,7 @@ admin.site.site_header = 'DataView'
 admin.site.site_title = 'data-view'
 
 urlpatterns = [
-    path('', landing.landing_page, name='landing'),
+    path('', landing.show, name='landing'),
     path('core/', admin.site.urls),
     path('api/v1/', include('ConversionAPI.v1.urls')),  # Dodanie nowych endpointów
 ]
