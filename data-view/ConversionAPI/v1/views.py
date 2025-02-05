@@ -3,12 +3,12 @@ import logging
 import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .utils.auth import GetUserFromApiKey
-from .models import ConvertedEmail
-from .models import DownloadLog
-from .utils.email_to_pdf import ConvertEmailToPDF
-from .utils.email_to_pdf import _InternalIdentifierGenerator
-from .utils.attachment_to_pdf import ConvertAttachmentToPDF
+from ConversionAPI.utils.auth import GetUserFromApiKey
+from ConversionAPI.models import ConvertedEmail
+from ConversionAPI.models import DownloadLog
+from ConversionAPI.utils.email_to_pdf import ConvertEmailToPDF
+from ConversionAPI.utils.email_to_pdf import _InternalIdentifierGenerator
+from ConversionAPI.utils.attachment_to_pdf import ConvertAttachmentToPDF
 from API.decorators import valid_api_key
 from django.http import FileResponse, Http404
 from django.core.exceptions import PermissionDenied
