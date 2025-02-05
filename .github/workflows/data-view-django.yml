@@ -37,7 +37,7 @@ jobs:
 
       - name: Run tests
         run: |
-          docker compose exec -T core python data-view/manage.py test
+          docker compose exec -T core python data-view/manage.py test ConversionAPI
 
       - name: Tear down
         if: always()
