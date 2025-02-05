@@ -49,7 +49,7 @@ import base64
 class DataViewAPITest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.api_key = ApiKey.objects.list(user__username="test").last()
+        self.api_key = "ghijkl-654321-ghijkl-654321"
         self.headers = {"x-api-key": self.api_key}
 
         self.email_data = {

@@ -13,7 +13,7 @@ class Command(BaseCommand):
         UserItem = User.objects.create(email="testuser@data-view.eu", username="test", password="test")
         print("Creating test user...done.")
         print("Generating new API key for user test...")
-        NormalAPIKey = ApiKey.objects.create(api_key=GenerateAPIKey(), credits=100.0, user=UserItem)
+        NormalAPIKey = ApiKey.objects.create(api_key="ghijkl-654321-ghijkl-654321", credits=100.0, user=UserItem)
         print(f"Generated API key for user test: {NormalAPIKey}.")
         print("Generating weak API key for user test...")
         WeakAPIKey = ApiKey.objects.create(api_key="abcdef-123456-abcdef-123456", credits=0.0, user=UserItem)
