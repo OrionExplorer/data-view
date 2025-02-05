@@ -23,7 +23,6 @@ RUN apt-get update\
  "python3-virtualenv"\
  "libtool"\
  "python3-pip"\
- "make"\
  "libpq-dev"\
   && apt-get clean\
  && rm -rf /var/lib/apt/lists/*
