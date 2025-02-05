@@ -36,7 +36,7 @@ jobs:
           docker compose exec -T core python data-view/manage.py migrate
       - name: Check media, static files and shared folder
         run: |
-          docker compose exec -T core ls -la /shared/output
+          docker compose exec -T core ls -la /shared/
           docker compose exec -T core ls -la /code/static
           docker compose exec -T core ls -la /code/media
       - name: Check LibreOffice
