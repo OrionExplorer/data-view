@@ -65,7 +65,7 @@ def convert_to_pdf():
         })
 
     except subprocess.CalledProcessError as e:
-        return jsonify({'error': f'Conversion failed: {str(e)}'}), 500
+        return jsonify({'error': f'Conversion failed: An internal error has occurred.'}), 500
 
     finally:
         if os.path.exists(input_file_path):
