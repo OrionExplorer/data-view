@@ -49,8 +49,6 @@ FROM debian:bookworm-slim
 ENV HOME=/code
 ENV APP_HOME=$HOME
 RUN mkdir $APP_HOME
-RUN mkdir $APP_HOME/static
-RUN mkdir $APP_HOME/media
 WORKDIR $APP_HOME
 
 RUN apt-get update\
@@ -79,6 +77,9 @@ ENV PATH=/venv/bin:$PATH
 
 RUN pip3 install --upgrade pip
 RUN pip3 install --no-cache /wheels/*
+
+RUN mkdir $APP_HOME/data-view/static
+RUN mkdir $APP_HOME/data-view/media
 
 # copy and run cron jobs
 # COPY ./data-view/cronjobs /etc/cron.d/
