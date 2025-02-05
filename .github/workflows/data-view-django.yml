@@ -19,14 +19,9 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Set up Docker Compose
-        run: |
-          docker-compose pull
-          docker-compose build
-
       - name: Start services
         run: |
-          docker-compose up -d  # Uruchamia wszystkie kontenery, w tym libreoffice
+          docker compose up -d --build  # Uruchamia wszystkie kontenery, w tym libreoffice
 
       - name: Wait for services to be ready
         run: |
@@ -35,12 +30,12 @@ jobs:
 
       - name: Run migrations
         run: |
-          docker-compose exec -T core python manage.py migrate
+          docker compose exec -T core python manage.py migrate
 
       - name: Run tests
         run: |
-          docker-compose exec -T core python manage.py test
+          docker compose exec -T core python manage.py test
 
       - name: Tear down
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
