@@ -24,20 +24,20 @@ jobs:
 
       - name: Start services
         run: |
-          docker compose up -d --build  # Nie trzeba już podawać -f
+          docker compose up -d --build  # Uruchamia wszystkie kontenery
 
       - name: Wait for services to be ready
         run: |
           echo "Waiting for services to be ready..."
-          sleep 15
+          sleep 15  # Opcjonalne oczekiwanie
 
       - name: Run migrations
         run: |
-          docker compose exec -T core python manage.py migrate
+          docker compose exec -T core python data-view/manage.py migrate
 
       - name: Run tests
         run: |
-          docker compose exec -T core python manage.py test
+          docker compose exec -T core python data-view/manage.py test
 
       - name: Tear down
         if: always()
