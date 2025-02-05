@@ -80,9 +80,6 @@ ENV PATH=/venv/bin:$PATH
 RUN pip3 install --upgrade pip
 RUN pip3 install --no-cache /wheels/*
 
-RUN mkdir $APP_HOME/data-view/static
-RUN mkdir $APP_HOME/data-view/media
-
 # copy and run cron jobs
 # COPY ./data-view/cronjobs /etc/cron.d/
 # RUN chmod 0644 /etc/cron.d/cronjobs
