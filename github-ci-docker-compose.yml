@@ -40,7 +40,7 @@ services:
       - "postgres_data:/var/lib/postgresql/data/"
     image: postgres:17.2-bookworm
     ports:
-      - "5455:5455"
+      - "5432:5432"
     env_file:
       - ./.env.data-view-db.dist
     restart: always
