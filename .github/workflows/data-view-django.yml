@@ -21,7 +21,7 @@ jobs:
 
       - name: Start services
         run: |
-          docker compose up -d --build  # Uruchamia wszystkie kontenery, w tym libreoffice
+          docker compose up -d --build --file github-ci-docker-compose.yml # Uruchamia wszystkie kontenery, w tym libreoffice
 
       - name: Wait for services to be ready
         run: |
