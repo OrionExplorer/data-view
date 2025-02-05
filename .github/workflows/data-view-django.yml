@@ -30,12 +30,12 @@ jobs:
 
       - name: Run migrations
         run: |
-          docker compose exec -T core python manage.py migrate
+          docker compose -f github-ci-docker-compose.yml exec -T core python manage.py migrate
 
       - name: Run tests
         run: |
-          docker compose exec -T core python manage.py test
+          docker compose -f github-ci-docker-compose.yml exec -T core python manage.py test
 
       - name: Tear down
         if: always()
-        run: docker compose down -v
+        run: docker compose -f github-ci-docker-compose.yml down -v
