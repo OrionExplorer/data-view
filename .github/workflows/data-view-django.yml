@@ -1,80 +1,46 @@
-name: data-view
+name: DataView CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
-  build:
-
+  build-and-test:
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 4
-      matrix:
-        python-version: [3.12,3.13]
-    services:
-      db:
-        image: postgres:17.2
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r ./data-view/requirements.txt
-    - name: Initialize test data
-      env:
-        DEBUG: "1"
-        SECRET_KEY: "DjangoSecretKey"
-        DJANGO_ALLOWED_HOSTS: "*"
-        DJANGO_CSRF_TRUSTED_ORIGINS: "http://localhost"
-        SQL_ENGINE: "django.db.backends.postgresql"
-        SQL_DATABASE: "db"
-        SQL_USER: "user"
-        SQL_PASSWORD: "password"
-        SQL_HOST: "127.0.0.1"
-        SQL_PORT: "5432"
-        HOME_DIR: "/code"
-        SESSION_SECRET: "SessionSecret"
-        TIMEZONE: "Europe/Warsaw"
-      working-directory: ./data-view
-      run: |
-        python manage.py makemigrations
-        python manage.py migrate
-        python manage.py inittestdata
-    # - name: Run Tests
-    #   env:
-    #     DEBUG: "1"
-    #     SECRET_KEY: "DjangoSecretKey"
-    #     DJANGO_ALLOWED_HOSTS: "*"
-    #     DJANGO_CSRF_TRUSTED_ORIGINS: "http://localhost"
-    #     SQL_ENGINE: "django.db.backends.postgresql"
-    #     SQL_DATABASE: "db"
-    #     SQL_USER: "user"
-    #     SQL_PASSWORD: "password"
-    #     SQL_HOST: "127.0.0.1"
-    #     SQL_PORT: "5432"
-    #     HOME_DIR: "/code"
-    #     SESSION_SECRET: "SessionSecret"
-    #     TIMEZONE: "Europe/Warsaw"
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    #   working-directory: ./data-view
-    #   run: |
-    #     python manage.py test
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Set up Docker Compose
+        run: |
+          docker-compose pull
+          docker-compose build
+
+      - name: Start services
+        run: |
+          docker-compose up -d  # Uruchamia wszystkie kontenery, w tym libreoffice
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for services to be ready..."
+          sleep 15  # Opcjonalny delay, można zastąpić healthcheckiem
+
+      - name: Run migrations
+        run: |
+          docker-compose exec -T core python manage.py migrate
+
+      - name: Run tests
+        run: |
+          docker-compose exec -T core python manage.py test
+
+      - name: Tear down
+        if: always()
+        run: docker-compose down -v
