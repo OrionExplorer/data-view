@@ -50,6 +50,8 @@ ENV HOME=/code
 ENV APP_HOME=$HOME
 RUN mkdir $APP_HOME
 WORKDIR $APP_HOME
+RUN mkdir $APP_HOME/static
+RUN mkdir $APP_HOME/media
 
 RUN apt-get update\
  && apt-get install -y --no-install-recommends\
