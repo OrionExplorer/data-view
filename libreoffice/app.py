@@ -44,7 +44,7 @@ def convert_to_pdf():
     try:
         subprocess.run([
             'soffice',
-            '--headless',
+            '--headless', '--invisible', '--nodefault', '--nofirststartwizard', '--nolockcheck', '--nologo', '--norestore',
             '--convert-to', 'pdf',
             '--outdir', output_dir,
             input_file_path
