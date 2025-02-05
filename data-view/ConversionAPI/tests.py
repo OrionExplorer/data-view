@@ -43,12 +43,13 @@ flake8 --ignore=E501,F401,E402,E902 .
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.test.utils import setup_test_environment
+from API.models import ApiKey
 import base64
 
 class DataViewAPITest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.api_key = "7tumuz-t3xlhg-mjonnx-crubl1"
+        self.api_key = ApiKey.objects.list(user__username="test").last()
         self.headers = {"x-api-key": self.api_key}
 
         self.email_data = {
