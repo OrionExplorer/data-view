@@ -10,6 +10,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         print("Creating test user...")
+        User.objects.filter(username="test").delete()
         UserItem = User.objects.create(email="testuser@data-view.eu", username="test", password="test")
         print("Creating test user...done.")
         print("Generating new API key for user test...")
