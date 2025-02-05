@@ -242,7 +242,7 @@ def DownloadPDFView(request, download_token):
     try:
         user = GetUserFromApiKey(request)
     except PermissionDenied as e:
-        return JsonResponse({"error": str(e)}, status=403)
+        return JsonResponse({"error": "Permission denied."}, status=403)
 
     try:
         converted_email = ConvertedEmail.objects.get(download_token=download_token, user=user)
