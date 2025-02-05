@@ -19,13 +19,13 @@ from django.urls import path, include
 # from API import views
 from django.conf import settings
 from django.conf.urls.static import static
-from ConversionAPI import views
+from ConversionAPI import landing
 
 admin.site.site_header = 'DataView'
 admin.site.site_title = 'data-view'
 
 urlpatterns = [
-    path('', views.landing_page, name='landing'),
+    path('', landing.landing_page, name='landing'),
     path('core/', admin.site.urls),
     path('api/v1/', include('ConversionAPI.v1.urls')),  # Dodanie nowych endpointów
 ]

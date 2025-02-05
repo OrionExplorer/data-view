@@ -17,7 +17,6 @@ from API.views import LOG_data
 from API.views import _AddApiKeyCreditHistory
 from API.models import ApiKey
 from decimal import Decimal
-from django.shortcuts import render
 from email import message_from_binary_file
 from email.message import EmailMessage
 from io import BytesIO
@@ -25,10 +24,6 @@ import base64
 
 
 logger = logging.getLogger("django")
-
-
-def landing_page(request):
-    return render(request, 'dataview_landing_page.html')
 
 
 def HandleHTTPResponse(Mode, PDFPath, DownloadToken=None):
