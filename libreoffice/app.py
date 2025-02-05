@@ -33,9 +33,9 @@ def convert_to_pdf():
     os.makedirs(output_dir, exist_ok=True)
 
     unique_id = str(uuid.uuid4())
-    input_file_path = os.path.join(input_dir, f"{unique_id}_{filename}")
+    input_file_path = os.path.normpath(os.path.join(input_dir, f"{unique_id}_{filename}"))
 
-    if not input_file_path.startswith(input_dir):
+    if not input_file_path.startswith(os.path.normpath(input_dir)):
         return jsonify({'error': f'Parameter \"filename\" is invalid.'}), 400
 
     with open(input_file_path, 'wb') as f:
