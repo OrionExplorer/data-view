@@ -40,6 +40,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r ./data-view/requirements.txt
     - name: Run Tests
+    - name: Initialize test data
+      working-directory: ./data-view
+      run: |
+        python manage.py inittestdata
       env:
         DEBUG: "1"
         SECRET_KEY: "DjangoSecretKey"

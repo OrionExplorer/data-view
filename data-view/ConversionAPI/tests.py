@@ -111,7 +111,7 @@ class DataViewAPITest(TestCase):
     def test_insufficient_credits(self):
         # Simulate insufficient credits scenario
         # This would require modifying the API key credits in the test DB setup
-        self.api_key = "h0aohk-r8olaa-daxlrz-evhblf"
+        self.api_key = "abcdef-123456-abcdef-123456"
         low_credit_headers = {"HTTP_X_API_KEY": self.api_key}
 
         response = self.client.post("/api/email-to-pdf/", 
