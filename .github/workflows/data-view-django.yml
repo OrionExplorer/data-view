@@ -34,7 +34,7 @@ jobs:
       - name: Run migrations
         run: |
           docker compose exec -T core python data-view/manage.py migrate
-      - name: Check media, static filesa and shared folder
+      - name: Check media, static files and shared folder
         run: |
           docker compose exec -T core ls -la /code/data-view/media
           docker compose exec -T core ls -la /code/data-view/static
