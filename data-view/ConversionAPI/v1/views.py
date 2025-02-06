@@ -62,7 +62,12 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
     TransferSize = round(TransferSize / 1000, 1)
 
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - PDF size is {round(OutputFileSize / 1000, 1)} KB.")
-    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - PDF size in {ResponseMode} mode is {TransferSize} KB.")
+
+    if ResponseMode == 'file_id':
+        TransferSize = round(SourceFileSize / 1000, 1)
+        # LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - PDF size in {ResponseMode} mode is {TransferSize} KB.")
+    else:
+        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - PDF size in {ResponseMode} mode is {TransferSize} KB.")
 
     CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
     CreditTransferCost = CreditCalculateData['credit_to_charge']
