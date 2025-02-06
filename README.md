@@ -21,6 +21,8 @@ The system provides endpoints for:
      - [✅ 1. Use Case: Converting Uploaded Files](#️-1-use-case-converting-uploaded-files)
      - [✅ 2. Use Case: Sending Attachment as Base64](#️-2-use-case-sending-attachment-as-base64)
    - [📥 `/api/v1/download/` – Download Converted PDFs](#-apiv1download--download-converted-pdfs)
+     - [✅ 1. Use Case: Downloading a Converted PDF](#-1-use-case-downloading-a-converted-pdf)
+     - [✅ 2. Use Case: Downloading and Removing a Converted PDF](#-2-use-case-downloading-and-removing-a-converted-pdf)
 2. [🚨 Error Handling](#-error-handling)
    - [❌ 1. Insufficient Credits](#-1-insufficient-credits)
    - [❌ 2. Invalid API Key](#-2-invalid-api-key)
@@ -182,14 +184,33 @@ X-API-KEY: your_api_key
 
 This endpoint allows users to download previously converted PDF files using the unique `file_id` received after conversion.
 
+### ✅ **1. Use Case: Downloading a Converted PDF**
+
 **Request:**
 ```bash
-GET /download/abc123xyz
+GET /api/v1/download/abc123xyz
 X-API-KEY: your_api_key
 ```
 
 **Response:**
 - Returns the converted PDF file.
+
+**Security Note:** The file remains on the server until manually deleted (see below).
+
+### ✅ **2. Use Case: Downloading and Removing a Converted PDF**
+
+Users can request automatic deletion of the file after download by adding `?remove=true` to the request.
+
+**Request:**
+```bash
+GET /api/v1/download/abc123xyz?remove=true
+X-API-KEY: your_api_key
+```
+
+**Response:**
+- Returns the converted PDF file and deletes it from the server after successful download.
+
+**Security Note:** If the `remove` parameter is not provided or set to `false`, the file remains on the server until manually deleted.
 
 ---
 
