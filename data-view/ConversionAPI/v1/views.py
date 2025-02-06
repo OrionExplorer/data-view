@@ -235,6 +235,10 @@ def DownloadPDFView(request, download_token):
 
     UserApiKeyItem = None
     UserItem = None
+    ResponseMode = request.GET.get('mode', 'inline_pdf')
+
+    if ResponseMode == 'file_id':
+        return JsonResponse({"error": "Mode \"file_id\" is invalid for this API endpoint."}, status=400)
 
     if 'x-api-id' in request.META:
         UserApiKeyItem = ApiKey.objects.filter(id=request.META['x-api-id']).last()
@@ -258,11 +262,21 @@ def DownloadPDFView(request, download_token):
         'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
     }
 
-    FileSize = ConvertedEmailItem.file_size
-    TransferSize = round(FileSize / 1000, 1)
+    EncodedPDF = None
+    TransferSize = ConvertedEmailItem.file_size
+
+    # Obliczenie rzeczywistego rozmiaru przesyłanych danych
+    if ResponseMode == 'base64_pdf':
+        with open(ConvertedEmailItem.file_path, 'rb') as PDFFile:
+            EncodedPDF = base64.b64encode(PDFFile.read()).decode('utf-8')
+            TransferSize = len(EncodedPDF)
+    else:
+        TransferSize = ConvertedEmailItem.file_size
+
+    TransferSize = round(TransferSize / 1000, 1)
     CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
     CreditTransferCost = CreditCalculateData['credit_to_charge']
-    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Transfer size: {TransferSize} KB")
+    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - PDF size in {ResponseMode} mode is {TransferSize} KB.")
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
     PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
     if PredictedBallance < 0.0:
@@ -286,7 +300,12 @@ def DownloadPDFView(request, download_token):
     QueryString = "&".join(f"{key}={value}" for key, value in request.GET.items())
 
     if os.path.exists(ConvertedEmailItem.file_path):
-        PreparedResponse = FileResponse(open(ConvertedEmailItem.file_path, 'rb'), content_type='application/pdf')
+        PreparedResponse = None
+
+        if ResponseMode == 'base64_pdf':
+            PreparedResponse = JsonResponse({"pdf_base64": EncodedPDF})
+        else:
+            PreparedResponse = FileResponse(open(ConvertedEmailItem.file_path, 'rb'), content_type='application/pdf')
 
         # Sprawdzenie, czy użytkownik chce usunąć plik po pobraniu
         if 'remove' in request.GET:
