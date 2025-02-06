@@ -23,6 +23,7 @@ The system provides endpoints for:
    - [📥 `/api/v1/download/` – Download Converted PDFs](#-apiv1download--download-converted-pdfs)
      - [✅ 1. Use Case: Downloading a Converted PDF](#-1-use-case-downloading-a-converted-pdf)
      - [✅ 2. Use Case: Downloading and Removing a Converted PDF](#-2-use-case-downloading-and-removing-a-converted-pdf)
+     - [⚠️ Invalid Mode Handling](#-invalid-mode-handling)
 2. [🚨 Error Handling](#-error-handling)
    - [❌ 1. Insufficient Credits](#-1-insufficient-credits)
    - [❌ 2. Invalid API Key](#-2-invalid-api-key)
@@ -186,16 +187,20 @@ This endpoint allows users to download previously converted PDF files using the 
 
 ### ✅ **1. Use Case: Downloading a Converted PDF**
 
+Users can request the file in different response formats using the `mode` parameter.
+
+**Available Modes:**
+- **`mode=inline_pdf`** – Returns the PDF directly in the response.
+- **`mode=base64_pdf`** – Returns the PDF as a Base64-encoded string in JSON.
+
 **Request:**
 ```bash
-GET /api/v1/download/abc123xyz
+GET /api/v1/download/abc123xyz?mode=inline_pdf
 X-API-KEY: your_api_key
 ```
 
 **Response:**
-- Returns the converted PDF file.
-
-**Security Note:** The file remains on the server until manually deleted (see below).
+- Returns the converted PDF file in the requested format.
 
 ### ✅ **2. Use Case: Downloading and Removing a Converted PDF**
 
@@ -203,12 +208,28 @@ Users can request automatic deletion of the file after download by adding `?remo
 
 **Request:**
 ```bash
-GET /api/v1/download/abc123xyz?remove=true
+GET /api/v1/download/abc123xyz?mode=inline_pdf&remove=true
 X-API-KEY: your_api_key
 ```
 
 **Response:**
 - Returns the converted PDF file and deletes it from the server after successful download.
+
+### ⚠️ **Invalid Mode Handling**
+If an unsupported `mode` is provided, such as `file_id`, the API returns an error:
+
+**Request:**
+```bash
+GET /api/v1/download/abc123xyz?mode=file_id
+X-API-KEY: your_api_key
+```
+
+**Response:**
+```json
+{
+  "error": "Mode \"file_id\" is invalid for this API endpoint."
+}
+```
 
 **Security Note:** If the `remove` parameter is not provided or set to `false`, the file remains on the server until manually deleted.
 
