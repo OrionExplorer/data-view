@@ -318,17 +318,14 @@ Consider the following scenario where a user uploads a document and later downlo
 
 #### **Billing Configuration:**
 
-```python
-billing = {
-    'chunk_KB': 10,
-    'credits': 0.1,
-    'min_chunk_KB': 10
-}
-```
+* **Chunk Size (KB)**: 10.
+> Credits are charged for every 10 KB of data transferred.
 
-- **`chunk_KB = 10`** – Credits are charged for every 10 KB of data transferred.  
-- **`credits = 0.1`** – Each 10 KB chunk costs **0.1 credit**.  
-- **`min_chunk_KB = 10`** – The minimum data size charged is 10 KB, even for smaller files.
+* **Credit Cost per Chunk**: 0.1.
+> Each 10 KB chunk costs **0.1 credit**.
+
+* **Minimum Chunk Size (KB)**: 10.
+> The minimum data size charged is 10 KB, even for smaller files.
 
 ---
 
