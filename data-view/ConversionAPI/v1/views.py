@@ -113,7 +113,7 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
         SavePDFPath = f"{SavePDFPath} (removed)"
 
     # Zapis pliku z powiązaniem do użytkownika i tokena
-    converted_email = ConvertedEmail.objects.create(
+    ConvertedEmailItem = ConvertedEmail.objects.create(
         user=UserItem,
         file_path=SavePDFPath,
         file_size=OutputFileSize,
@@ -134,7 +134,7 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
     # W przypadku mode == file_id plik musi być zachowany do późniejszego pobrania na żądanie.
     # Dopiero wtedy można użyć parametru "remove", aby usunąć plik po pobraniu
     if ResponseMode != 'file_id':
-        DownloadLog.objects.create(user=UserItem, file=converted_email, ip_address=UserIPAddress)
+        DownloadLog.objects.create(user=UserItem, file=ConvertedEmailItem, ip_address=UserIPAddress)
         if os.path.exists(PDFPath):  # Nie przechowujemy pliku
             os.remove(PDFPath)
 
@@ -232,19 +232,22 @@ def AttachmentToPDFView(request):
 @csrf_exempt
 @valid_api_key
 def DownloadPDFView(request, download_token):
-    try:
-        user = GetUserFromApiKey(request)
-    except PermissionDenied as e:
+
+    UserApiKeyItem = None
+    UserItem = None
+
+    if 'x-api-id' in request.META:
+        UserApiKeyItem = ApiKey.objects.filter(id=request.META['x-api-id']).last()
+        if UserApiKeyItem:
+            UserItem = UserApiKeyItem.user
+
+    if UserItem is None:
         return JsonResponse({"error": "Permission denied."}, status=403)
 
     try:
-        converted_email = ConvertedEmail.objects.get(download_token=download_token, user=user)
+        ConvertedEmailItem = ConvertedEmail.objects.get(download_token=download_token, user=UserItem)
     except ConvertedEmail.DoesNotExist:
         return JsonResponse({"error": "File does not exist or you do not have access."}, status=404)
-
-    UserApiKeyItem = None
-    if 'x-api-id' in request.META:
-        UserApiKeyItem = ApiKey.objects.filter(id=request.META['x-api-id']).last()
 
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 
@@ -255,7 +258,7 @@ def DownloadPDFView(request, download_token):
         'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
     }
 
-    FileSize = converted_email.file_size
+    FileSize = ConvertedEmailItem.file_size
     TransferSize = round(FileSize / 1000, 1)
     CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
     CreditTransferCost = CreditCalculateData['credit_to_charge']
@@ -282,8 +285,8 @@ def DownloadPDFView(request, download_token):
 
     QueryString = "&".join(f"{key}={value}" for key, value in request.GET.items())
 
-    if os.path.exists(converted_email.file_path):
-        PreparedResponse = FileResponse(open(converted_email.file_path, 'rb'), content_type='application/pdf')
+    if os.path.exists(ConvertedEmailItem.file_path):
+        PreparedResponse = FileResponse(open(ConvertedEmailItem.file_path, 'rb'), content_type='application/pdf')
 
         # Sprawdzenie, czy użytkownik chce usunąć plik po pobraniu
         if 'remove' in request.GET:
@@ -298,15 +301,15 @@ def DownloadPDFView(request, download_token):
                 )
 
             if DoRemoveFile == 'true':
-                if os.path.exists(converted_email.file_path):
-                    os.remove(converted_email.file_path)
+                if os.path.exists(ConvertedEmailItem.file_path):
+                    os.remove(ConvertedEmailItem.file_path)
 
-        DownloadLog.objects.create(user=user, file=converted_email, ip_address=UserIPAddress)
+        DownloadLog.objects.create(user=UserItem, file=ConvertedEmailItem, ip_address=UserIPAddress)
         UserApiKeyItem.credits = max(0, PredictedBallance)
         UserApiKeyItem.save()
         _AddApiKeyCreditHistory(
             UserApiKeyItem=UserApiKeyItem,
-            data_request_uri=f"/api/v1/download/{download_token}/ [{QueryString}] <{os.path.basename(converted_email.file_path)}>",
+            data_request_uri=f"/api/v1/download/{download_token}/ [{QueryString}] <{os.path.basename(ConvertedEmailItem.file_path)}>",
             response_size=TransferSize,
             request_chunk_size=CreditCalculateData['chunk_size'],
             chunk_count=CreditCalculateData['chunk_size_count'],
