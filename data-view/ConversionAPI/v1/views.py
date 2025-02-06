@@ -279,13 +279,14 @@ def DownloadPDFView(request, download_token):
 
     if os.path.exists(converted_email.file_path):
         PreparedResponse = FileResponse(open(converted_email.file_path, 'rb'), content_type='application/pdf')
+
         # Sprawdzenie, czy użytkownik chce usunąć plik po pobraniu
         if 'remove' in request.GET:
             DoRemoveFile = request.GET.get('remove', 'false').lower()
             if DoRemoveFile != 'true' and DoRemoveFile != 'false':
                 return JsonResponse(
                     {
-                        "error": f"Parameter \"remove\" has incorrect value: {DoRemoveFile}. Available values are: [\"true\", \"false\"]."
+                        "error": f"Parameter \"remove\" has incorrect value: \"{DoRemoveFile}\". Available values are: [\"true\", \"false\"]."
                     },
                     json_dumps_params={'indent': 2},
                     status=400,
@@ -311,7 +312,6 @@ def DownloadPDFView(request, download_token):
             request_uid=request.META['data-view-uid']
         )
         LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
-
 
         return PreparedResponse
     else:
