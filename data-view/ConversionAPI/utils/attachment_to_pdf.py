@@ -177,6 +177,6 @@ def ConvertAttachmentToPDF(file=None, content=None, filename=None, api_key=None)
         return {
             'status': 500,
             'data': {
-                'error': f"Error connecting to LibreOffice API: {e}"
+                'error': f"Error connecting to LibreOffice API."
             }
         }

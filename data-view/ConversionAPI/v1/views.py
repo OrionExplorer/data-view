@@ -102,7 +102,7 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
     if ResponseMode == 'inline_pdf':
         TransferSize = OutputFileSize  # os.path.getsize(PDFPath)
     elif ResponseMode == 'base64_pdf':
-        with open(PDFPath, 'rb') as PDFFile:
+        with open(os.path.normpath(PDFPath), 'rb') as PDFFile:
             EncodedPDF = base64.b64encode(PDFFile.read()).decode('utf-8')
             TransferSize = len(EncodedPDF)
     else:
@@ -177,7 +177,7 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
     PreparedResponse = JsonResponse({"file_id": DownloadToken})
 
     if ResponseMode == 'inline_pdf':
-        PreparedResponse = FileResponse(open(PDFPath, 'rb'), content_type='application/pdf')
+        PreparedResponse = FileResponse(open(os.path.normpath(PDFPath), 'rb'), content_type='application/pdf')
     elif ResponseMode == 'base64_pdf':
         PreparedResponse = JsonResponse({"pdf_base64": EncodedPDF})
     else:
@@ -190,8 +190,8 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
     if ResponseMode != 'file_id':
         DownloadLog.objects.create(user=UserItem, file=ConvertedEmailItem, ip_address=UserIPAddress)
         if DoRemoveFile is True:
-            if os.path.exists(PDFPath):  # Nie przechowujemy pliku
-                os.remove(PDFPath)
+            if os.path.exists(os.path.normpath(PDFPath)):  # Nie przechowujemy pliku
+                os.remove(os.path.normpath(PDFPath))
 
     return PreparedResponse
 
