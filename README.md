@@ -53,7 +53,9 @@ The system provides endpoints for:
    - [Security & API Management](#security--api-management)
 8. [📦 Deployment Architecture](#-deployment-architecture)
 9. [⚙️ Deployment Instructions](#-deployment-instructions)
-10. [📜 License](#-license)
+10. [⚡ Scaling LibreOffice Instances](#-scaling-libreoffice-instances)
+   - [📃 Further Reading](#-further-reading)
+11. [📜 License](#-license)
 
 ---
 
@@ -519,6 +521,31 @@ http://data-view.local:9393/
 ```bash
 docker-compose ps
 ```
+
+---
+
+## ⚡ Scaling LibreOffice Instances
+
+DataView supports **dynamic scaling** of LibreOffice instances to improve performance and handle high loads.  
+This can be achieved by using the `--scale` option in Docker Compose:
+
+```bash
+docker compose up -d --scale libreoffice=N
+```
+
+where `N` is the number of desired LibreOffice instances.
+
+### 🔄 **How Scaling Works**
+- DataView automatically detects active LibreOffice instances and distributes conversion requests across them.
+- If no instance is available, the API returns a **503 Service Unavailable** error.
+- Load balancing is handled dynamically, ensuring efficient resource usage.
+
+This allows the system to **adapt to workload spikes** while maintaining **high availability** and **fault tolerance**. 🚀
+
+### 📃 **Further Reading**
+For more details on scaling containers, including information about allocated CPU/RAM resources, refer to the [Docker documentation](https://docs.docker.com/compose/).
+
+---
 
 ## 📜 License
 

@@ -5,6 +5,7 @@ import base64
 from django.conf import settings
 from .system import get_system_setting
 from API.views import LOG_data
+from ConversionAPI.utils.system import GetRandomLibreOfficeInstance
 
 
 SUPPORTED_FORMATS = {
@@ -77,13 +78,38 @@ def is_file_format_valid(file):
 
 def ConvertAttachmentToPDF(file=None, content=None, filename=None, api_key=None):
     try:
+        LibreOfficeInstance = None
+
+        try:
+            LibreOfficeInstance = GetRandomLibreOfficeInstance()
+        except RuntimeError as e:
+            return {
+                'status': 503,
+                'data': {
+                    'error': 'Service unavailable'
+                }
+            }
+
+        if LibreOfficeInstance is None:
+            return {
+                'status': 503,
+                'data': {
+                    'error': 'Service unavailable'
+                }
+            }
+
         if file:
             file_extension = os.path.splitext(file.name)[1].lower()
             expected_mime_type = SUPPORTED_FORMATS.get(file_extension)
 
             if not expected_mime_type:
                 LOG_data(text=f"Unsupported file format: {file_extension}")
-                return None, None
+                return {
+                    'status': 400,
+                    'data': {
+                        'error': f"Unsupported file format: {file_extension}"
+                    }
+                }
 
             actual_mime_type = file.content_type
             if actual_mime_type != expected_mime_type:
@@ -92,34 +118,65 @@ def ConvertAttachmentToPDF(file=None, content=None, filename=None, api_key=None)
 
             if get_system_setting('CHECK_MAGIC_NUMBER', default=True) and not is_file_format_valid(file):
                 LOG_data(text=f"Magic number mismatch for file: {file.name}")
-                return None, None
+                return {
+                    'status': 400,
+                    'data': {
+                        'error': f"Magic number mismatch for file: {file.name}"
+                    }
+                }
 
             max_file_size = get_system_setting('MAX_FILE_SIZE', default=50) * 1024 * 1024
             if file.size > max_file_size:
-                LOG_data(text=f"File {file.name} exceeds the maximum allowed size.")
-                return None, None
+                LOG_data(text=f"File {file.name} exceeds the maximum allowed size ({max_file_size} MB).")
+                return {
+                    'status': 400,
+                    'data': {
+                        'error': f"File {file.name} exceeds the maximum allowed size ({max_file_size} MB)."
+                    }
+                }
 
+            LOG_data(text=f"LibreOffice instance: {LibreOfficeInstance}.")
             response = requests.post(
-                'http://libreoffice:5000/convert',
+                f'{LibreOfficeInstance}/convert',
                 files={'file': (file.name, file)}
             )
         elif content and filename:
+            LOG_data(text=f"LibreOffice instance: {LibreOfficeInstance}.")
             response = requests.post(
-                'http://libreoffice:5000/convert',
+                f'{LibreOfficeInstance}/convert',
                 json={'filename': filename, 'content': content}
             )
         else:
-            return None, None
+            return {
+                'status': 500,
+                'data': {
+                    'error': "No file or content specified.",
+                }
+            }
 
         if response.status_code == 200:
             data = response.json()
             LOG_data(text=f"[ConvertAttachmentToPDF] response from converter: {data}")
             pdf_path = data.get('pdf_path')
             file_size = data.get('file_size')
-            return pdf_path, file_size
+            return {
+                'status': 200,
+                'data': {
+                    'pdf_path': pdf_path,
+                    'file_size': file_size
+                }
+            }
         else:
             LOG_data(text=f"Conversion failed: {response.text}")
-            return None, None
+            return {
+                'status': 500,
+                'error': f"Conversion failed: {response.text}"
+            }
     except requests.exceptions.RequestException as e:
         LOG_data(text=f"Error connecting to LibreOffice API: {e}")
-        return None, None
+        return {
+            'status': 500,
+            'data': {
+                'error': f"Error connecting to LibreOffice API: {e}"
+            }
+        }

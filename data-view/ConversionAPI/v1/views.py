@@ -260,16 +260,19 @@ def AttachmentToPDFView(request):
             filename = data.get('filename')
             content = data.get('content')
             SourceFileSize = len(content)
-            PDFPath, PDFFileSize = ConvertAttachmentToPDF(content=content, filename=filename, api_key=UserApiKeyItem.api_key)
+            ConversionData = ConvertAttachmentToPDF(content=content, filename=filename, api_key=UserApiKeyItem.api_key)
         else:
             SourceFileSize = int(request.headers['Content-Length'])
             file = request.FILES['file']
-            PDFPath, PDFFileSize = ConvertAttachmentToPDF(file=file, api_key=UserApiKeyItem.api_key)
+            ConversionData = ConvertAttachmentToPDF(file=file, api_key=UserApiKeyItem.api_key)
 
-        if PDFPath is None or PDFFileSize is None:
-            return JsonResponse({"error": "Conversion failed."}, status=400)
+        if ConversionData['status'] != 200:
+            return JsonResponse({'error': ConversionData['data']['error']}, status=ConversionData['status'])
+        else:
+            PDFPath = ConversionData['data']['pdf_path']
+            PDFFileSize = ConversionData['data']['file_size']
 
-        return _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, PDFFileSize, '/api/v1/attachment-to-pdf/')
+            return _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, PDFFileSize, '/api/v1/attachment-to-pdf/')
 
     return JsonResponse({"error": "No attachment files received."}, status=400)
 

@@ -26,7 +26,6 @@ services:
   libreoffice:
     build:
       context: ./libreoffice
-    container_name: libreoffice
     expose:
       - "5000"
     restart: always
