@@ -26,6 +26,18 @@ import base64
 logger = logging.getLogger("django")
 
 
+def _ValidateQueryParams(request, ViewName):
+    if 'remove' in request.GET:  # Jeśli użytkownik podał parametr remove...
+        ResponseMode = request.GET.get('mode', 'file_id')
+        if request.GET.get('remove') == "true":  # ...i oznaczył, że chce usunąć plik po wykonanej operacji...
+            if ResponseMode == 'file_id' and '/download/' not in ViewName:  # ...ale operacja to nie pobranie, ale wgranie pliku w trybie "file_id"
+                return JsonResponse({'error': 'Parameter \"field_id\" is forbidden for uploads with \"remove=true\" mode.'}, status=400)
+
+            elif ResponseMode == 'file_id' and '/download/' in ViewName:  # ..ale operacja to pobranie w trybie "file_id"
+                return JsonResponse({'error': 'Parameter \"field_id\" is forbidden for this endpoint.'}, status=400)
+    return True
+
+
 def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, OutputFileSize, ViewName):
     ResponseMode = request.GET.get('mode', 'file_id')
 
@@ -74,8 +86,6 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
                 DoRemoveFile = False
             else:  # ...i to wgranie pliku w trybie innym niż "file_id"
                 DoRemoveFile = True
-
-
 
     CreditsLeft = UserApiKeyItem.credits
     BillingInfo = {
@@ -193,6 +203,10 @@ def EmailToPDFView(request):
     if 'x-api-id' in request.META:
         UserApiKeyItem = ApiKey.objects.filter(id=request.META['x-api-id']).last()
 
+    QueryParamsValidInfo = _ValidateQueryParams(request, '/api/v1/email-to-pdf/')
+    if QueryParamsValidInfo is not True:
+        return QueryParamsValidInfo
+
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 
     if request.method == 'POST':
@@ -248,6 +262,10 @@ def AttachmentToPDFView(request):
     UserApiKeyItem = None
     if 'x-api-id' in request.META:
         UserApiKeyItem = ApiKey.objects.filter(id=request.META['x-api-id']).last()
+
+    QueryParamsValidInfo = _ValidateQueryParams(request, '/api/v1/attachment-to-pdf/')
+    if QueryParamsValidInfo is not True:
+        return QueryParamsValidInfo
 
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
 

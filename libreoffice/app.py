@@ -58,6 +58,9 @@ def convert_to_pdf():
 
         file_size = os.path.getsize(output_file_path)
 
+        if os.path.exists(input_file_path):
+            os.remove(input_file_path)
+
         return jsonify({
             'status': 'success',
             'pdf_path': output_file_path,
