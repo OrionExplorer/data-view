@@ -54,6 +54,7 @@ The system provides endpoints for:
 8. [📦 Deployment Architecture](#-deployment-architecture)
 9. [⚙️ Deployment Instructions](#-deployment-instructions)
 10. [⚡ Scaling LibreOffice Instances](#-scaling-libreoffice-instances)
+   - [🔄 How Scaling Works](#-how-scaling-works)
    - [📃 Further Reading](#-further-reading)
 11. [📜 License](#-license)
 
