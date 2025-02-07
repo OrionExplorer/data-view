@@ -1,3 +1,4 @@
+name: data-view
 services:
   core:
     container_name: core
