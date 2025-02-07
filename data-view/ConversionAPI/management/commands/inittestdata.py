@@ -19,4 +19,3 @@ class Command(BaseCommand):
         print("Generating weak API key for user test...")
         WeakAPIKey = ApiKey.objects.create(api_key="abcdef-123456-abcdef-123456", credits=0.0, user=UserItem)
         print(f"Generated weak API key for user test: {WeakAPIKey}.")
-

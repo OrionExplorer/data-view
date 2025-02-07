@@ -35,6 +35,48 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
 
     DownloadToken = _InternalIdentifierGenerator(32)
 
+    QueryString = "&".join(f"{key}={value}" for key, value in request.GET.items())
+
+    DoRemoveFile = False
+    ForceRemoveFile = False
+    if 'remove' in request.GET:  # Jeśli użytkownik podał parametr remove...
+        if request.GET.get('remove') == "true":  # ...i oznaczył, że chce usunąć plik po wykonanej operacji...
+            if ResponseMode == 'file_id' and '/download/' not in ViewName:  # ...ale operacja to nie pobranie, ale wgranie pliku w trybie "file_id"
+                return JsonResponse({'error': 'Parameter \"field_id\" is forbidden for uploads with \"remove=true\" mode.'}, status=400)
+
+            elif ResponseMode == 'file_id' and '/download/' in ViewName:  # ..ale operacja to pobranie w trybie "file_id"
+                return JsonResponse({'error': 'Parameter \"field_id\" is forbidden for this endpoint.'}, status=400)
+
+            elif ResponseMode != 'file_id' and '/download/' not in ViewName:  # ...ale operacja to nie pobranie, ale wgranie pliku w trybie innym niż "file_id"
+                DoRemoveFile = True
+
+            elif ResponseMode != 'file_id' and '/download/' in ViewName:  # ...ale operacja to pobranie w trybie innym niż "file_id":
+                DoRemoveFile = True
+            else:
+                DataDump = f"""
+                \r  - request.META = {request.META}
+                \r  - view = {ViewName}
+                \r  - query = {QueryString}
+                \r  - API key = {UserApiKeyItem.api_key}
+                \r  - PDFPath = {PDFPath}
+                \r  - SourceFileSize = {SourceFileSize}
+                \r  - OutputFileSize = {OutputFileSize}
+                """
+                LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Unhandled exception: '{DataDump}'.")
+
+        else:  # ...i oznaczył, że nie chce usunąć pliku po wykonanej operacji...
+            DoRemoveFile = False
+    else:  # Jeśli użytkownik nie podał parametru remove...
+        if '/download/' in ViewName:  # ...ale operacja to pobranie
+            DoRemoveFile = False
+        elif '/download/' not in ViewName:  # ...ale operacja to wgranie pliku
+            if ResponseMode == 'file_id':  # ...i to wgranie pliku w trybie "file_id"
+                DoRemoveFile = False
+            else:  # ...i to wgranie pliku w trybie innym niż "file_id"
+                DoRemoveFile = True
+
+
+
     CreditsLeft = UserApiKeyItem.credits
     BillingInfo = {
         'chunk_KB': UserApiKeyItem.billing_chunk_kb,
@@ -96,7 +138,8 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
 
     _AddApiKeyCreditHistory(
         UserApiKeyItem=UserApiKeyItem,
-        data_request_uri=ViewName,
+        # data_request_uri=ViewName,
+        data_request_uri=f"{ViewName}/ [{QueryString}] <{os.path.basename(PDFPath)}>",
         response_size=TransferSize,
         request_chunk_size=CreditCalculateData['chunk_size'],
         chunk_count=CreditCalculateData['chunk_size_count'],
@@ -109,8 +152,9 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
     LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
 
     SavePDFPath = PDFPath
-    if ResponseMode != 'file_id':
+    if DoRemoveFile is True:
         SavePDFPath = f"{SavePDFPath} (removed)"
+        
 
     # Zapis pliku z powiązaniem do użytkownika i tokena
     ConvertedEmailItem = ConvertedEmail.objects.create(
@@ -135,8 +179,9 @@ def _GenerateContentResponse(request, UserApiKeyItem, PDFPath, SourceFileSize, O
     # Dopiero wtedy można użyć parametru "remove", aby usunąć plik po pobraniu
     if ResponseMode != 'file_id':
         DownloadLog.objects.create(user=UserItem, file=ConvertedEmailItem, ip_address=UserIPAddress)
-        if os.path.exists(PDFPath):  # Nie przechowujemy pliku
-            os.remove(PDFPath)
+        if DoRemoveFile is True:
+            if os.path.exists(PDFPath):  # Nie przechowujemy pliku
+                os.remove(PDFPath)
 
     return PreparedResponse
 
@@ -164,8 +209,8 @@ def EmailToPDFView(request):
             recipient = data.get('recipient')
             subject = data.get('subject', 'No Subject')
             body = data.get('body')
-            attachments = data.get('attachments', [])
             SourceFileSize = len(body)
+            # attachments = data.get('attachments', [])
 
             if not sender or not recipient or not body:
                 return JsonResponse({'error': 'Missing required fields.'}, status=400)
@@ -254,92 +299,4 @@ def DownloadPDFView(request, download_token):
         return JsonResponse({"error": "File does not exist or you do not have access."}, status=404)
 
     request.META['data-view-uid'] = f"{_InternalIdentifierGenerator(8)}-{UserApiKeyItem.api_key}"
-
-    CreditsLeft = UserApiKeyItem.credits
-    BillingInfo = {
-        'chunk_KB': UserApiKeyItem.billing_chunk_kb,
-        'credits': UserApiKeyItem.billing_credit_cost,
-        'min_chunk_KB': UserApiKeyItem.billing_min_chunk_kb
-    }
-
-    EncodedPDF = None
-    TransferSize = ConvertedEmailItem.file_size
-
-    # Obliczenie rzeczywistego rozmiaru przesyłanych danych
-    if ResponseMode == 'base64_pdf':
-        with open(ConvertedEmailItem.file_path, 'rb') as PDFFile:
-            EncodedPDF = base64.b64encode(PDFFile.read()).decode('utf-8')
-            TransferSize = len(EncodedPDF)
-    else:
-        TransferSize = ConvertedEmailItem.file_size
-
-    TransferSize = round(TransferSize / 1000, 1)
-    CreditCalculateData = _CalculateCreditCost(model='ConvertedEmail', transfer_size_KB=TransferSize, billing_info=BillingInfo, request_uid=request.META['data-view-uid'])
-    CreditTransferCost = CreditCalculateData['credit_to_charge']
-    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"  - PDF size in {ResponseMode} mode is {TransferSize} KB.")
-    LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before data transfer: {CreditsLeft}")
-    PredictedBallance = round(CreditsLeft - CreditTransferCost, 1)
-    if PredictedBallance < 0.0:
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.error, text=f"ERROR: Request exceeds available credits. Predicted ballance is {round(PredictedBallance, 2)}!")
-        return JsonResponse(
-            {
-                "error": "Insufficient credits. Please top up your account.",
-                "available_credits": float(CreditsLeft),
-                "required_credits": float(CreditTransferCost)
-            },
-            json_dumps_params={'indent': 2},
-            status=400,
-        )
-    UserIPAddress = None
-
-    if 'HTTP_X_FORWARDED_FOR' in request.META:
-        UserIPAddress = request.META['HTTP_X_FORWARDED_FOR'].split(',')[-1].strip()
-    else:
-        UserIPAddress = request.META['REMOTE_ADDR']
-
-    QueryString = "&".join(f"{key}={value}" for key, value in request.GET.items())
-
-    if os.path.exists(ConvertedEmailItem.file_path):
-        PreparedResponse = None
-
-        if ResponseMode == 'base64_pdf':
-            PreparedResponse = JsonResponse({"pdf_base64": EncodedPDF})
-        else:
-            PreparedResponse = FileResponse(open(ConvertedEmailItem.file_path, 'rb'), content_type='application/pdf')
-
-        # Sprawdzenie, czy użytkownik chce usunąć plik po pobraniu
-        if 'remove' in request.GET:
-            DoRemoveFile = request.GET.get('remove', 'false').lower()
-            if DoRemoveFile != 'true' and DoRemoveFile != 'false':
-                return JsonResponse(
-                    {
-                        "error": f"Parameter \"remove\" has incorrect value: \"{DoRemoveFile}\". Available values are: [\"true\", \"false\"]."
-                    },
-                    json_dumps_params={'indent': 2},
-                    status=400,
-                )
-
-            if DoRemoveFile == 'true':
-                if os.path.exists(ConvertedEmailItem.file_path):
-                    os.remove(ConvertedEmailItem.file_path)
-
-        DownloadLog.objects.create(user=UserItem, file=ConvertedEmailItem, ip_address=UserIPAddress)
-        UserApiKeyItem.credits = max(0, PredictedBallance)
-        UserApiKeyItem.save()
-        _AddApiKeyCreditHistory(
-            UserApiKeyItem=UserApiKeyItem,
-            data_request_uri=f"/api/v1/download/{download_token}/ [{QueryString}] <{os.path.basename(ConvertedEmailItem.file_path)}>",
-            response_size=TransferSize,
-            request_chunk_size=CreditCalculateData['chunk_size'],
-            chunk_count=CreditCalculateData['chunk_size_count'],
-            credit_per_chunk=CreditCalculateData['credit_per_chunk'],
-            total_credit_cost=CreditCalculateData['credit_to_charge'],
-            credit_balance=CreditsLeft,
-            ip=UserIPAddress,
-            request_uid=request.META['data-view-uid']
-        )
-        LOG_data(request_uid=request.META['data-view-uid'], log_fn=logger.info, text=f"Credits for {UserApiKeyItem.api_key} before after transfer: {round(UserApiKeyItem.credits, 2)}")
-
-        return PreparedResponse
-    else:
-        return JsonResponse({"error": "File does not exist or you do not have access."}, status=404)
+    return _GenerateContentResponse(request, UserApiKeyItem, ConvertedEmailItem.file_path, ConvertedEmailItem.file_size, ConvertedEmailItem.file_size, '/api/v1/download/')

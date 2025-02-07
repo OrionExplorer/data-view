@@ -1,5 +1,3 @@
-from django.test import TestCase
-
 # Create your tests here.
 """
 ## INLINE PDF OUTPUT (multipart)
@@ -46,6 +44,7 @@ from django.test.utils import setup_test_environment
 from API.models import ApiKey
 import base64
 
+
 class DataViewAPITest(TestCase):
     def setUp(self):
         self.client = Client()
@@ -67,26 +66,26 @@ class DataViewAPITest(TestCase):
     def test_email_to_pdf(self):
         modes = ["file_id", "inline_pdf", "base64_pdf"]
         for mode in modes:
-            response = self.client.post(f"/api/v1/email-to-pdf/?mode={mode}", 
-                                        data=self.email_data, 
-                                        content_type="application/json", 
+            response = self.client.post(f"/api/v1/email-to-pdf/?mode={mode}",
+                                        data=self.email_data,
+                                        content_type="application/json",
                                         headers=self.headers)
             self.assertEqual(response.status_code, 200, f"Failed for mode={mode}")
 
     def test_attachment_to_pdf(self):
         modes = ["file_id", "inline_pdf", "base64_pdf"]
         for mode in modes:
-            response = self.client.post(f"/api/v1/attachment-to-pdf/?mode={mode}", 
-                                        data=self.attachment_data, 
-                                        content_type="application/json", 
+            response = self.client.post(f"/api/v1/attachment-to-pdf/?mode={mode}",
+                                        data=self.attachment_data,
+                                        content_type="application/json",
                                         headers=self.headers)
             self.assertEqual(response.status_code, 200, f"Failed for mode={mode}")
 
     def test_download_converted_file(self):
         # First, create a file to download
-        response = self.client.post("/api/v1/email-to-pdf/?mode=file_id", 
-                                    data=self.email_data, 
-                                    content_type="application/json", 
+        response = self.client.post("/api/v1/email-to-pdf/?mode=file_id",
+                                    data=self.email_data,
+                                    content_type="application/json",
                                     headers=self.headers)
         self.assertEqual(response.status_code, 200)
         file_id = response.json().get("file_id")
@@ -97,15 +96,15 @@ class DataViewAPITest(TestCase):
 
     def test_invalid_api_key(self):
         invalid_headers = {"HTTP_X_API_KEY": "invalid_api_key"}
-        response = self.client.post("/api/v1/email-to-pdf/", 
-                                    data=self.email_data, 
-                                    content_type="application/json", 
+        response = self.client.post("/api/v1/email-to-pdf/",
+                                    data=self.email_data,
+                                    content_type="application/json",
                                     **invalid_headers)
         self.assertEqual(response.status_code, 403)
 
     def test_missing_api_key(self):
-        response = self.client.post("/api/v1/email-to-pdf/", 
-                                    data=self.email_data, 
+        response = self.client.post("/api/v1/email-to-pdf/",
+                                    data=self.email_data,
                                     content_type="application/json")
         self.assertEqual(response.status_code, 403)
 
@@ -115,8 +114,8 @@ class DataViewAPITest(TestCase):
         self.api_key = "abcdef-123456-abcdef-123456"
         low_credit_headers = {"HTTP_X_API_KEY": self.api_key}
 
-        response = self.client.post("/api/v1/email-to-pdf/", 
-                                    data=self.email_data, 
-                                    content_type="application/json", 
+        response = self.client.post("/api/v1/email-to-pdf/",
+                                    data=self.email_data,
+                                    content_type="application/json",
                                     **low_credit_headers)
         self.assertEqual(response.status_code, 402)
